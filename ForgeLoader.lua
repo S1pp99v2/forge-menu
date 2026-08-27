@@ -1,11 +1,7 @@
--- 锻造菜单加载器：每次执行都拉最新脚本。
--- 1) 把下面 SCRIPT_URL 换成你的 Raw 地址（Gist / GitHub raw）
--- 2) 只把这一份发给朋友，让他们在 Potassium 里执行
+-- 锻造菜单加载器：每次按最新提交拉脚本，避开 CDN 缓存。
 
-local SCRIPT_URLS = {
-	"https://cdn.jsdelivr.net/gh/S1pp99v2/forge-menu@main/ForgeFarm.lua",
-	"https://raw.githubusercontent.com/S1pp99v2/forge-menu/main/ForgeFarm.lua",
-}
+local REPO = "S1pp99v2/forge-menu"
+local FILE = "ForgeFarm.lua"
 local CACHE_FILE = "ForgeFarm.cache.lua"
 
 local function grab(name)
@@ -81,6 +77,32 @@ local function httpGet(url)
 	return nil
 end
 
+local function latestSha()
+	local body = httpGet("https://api.github.com/repos/" .. REPO .. "/commits/main")
+	if type(body) ~= "string" then
+		return nil
+	end
+	return string.match(body, '"sha"%s*:%s*"([a-f0-9]+)"')
+end
+
+local function urlList()
+	local stamp = tostring(os.time())
+	local sha = latestSha()
+	local list = {}
+	if type(sha) == "string" and #sha >= 7 then
+		list[#list + 1] = "https://cdn.jsdelivr.net/gh/" .. REPO .. "@" .. sha .. "/" .. FILE
+		print("[Forge] commit " .. string.sub(sha, 1, 7))
+	end
+	list[#list + 1] = "https://cdn.jsdelivr.net/gh/" .. REPO .. "@main/" .. FILE .. "?t=" .. stamp
+	list[#list + 1] = "https://github.com/" .. REPO .. "/raw/main/" .. FILE .. "?t=" .. stamp
+	list[#list + 1] = "https://raw.githubusercontent.com/" .. REPO .. "/main/" .. FILE .. "?t=" .. stamp
+	return list
+end
+
+local function goodSource(src)
+	return type(src) == "string" and #src > 80 and string.find(src, "ForgeFarm")
+end
+
 local function runSource(src, from)
 	if type(loadstringFn) ~= "function" then
 		warn("[Forge] 没有 loadstring")
@@ -95,20 +117,22 @@ local function runSource(src, from)
 	fn()
 end
 
-env._ForgeScriptUrls = SCRIPT_URLS
-env._ForgeScriptUrl = SCRIPT_URLS[1]
+local urls = urlList()
+env._ForgeScriptUrls = urls
+env._ForgeScriptUrl = urls[1]
 
 local src = nil
-for _, url in ipairs(SCRIPT_URLS) do
+for _, url in ipairs(urls) do
 	src = httpGet(url)
-	if type(src) == "string" and #src > 80 and string.find(src, "ForgeFarm") then
+	if goodSource(src) then
 		env._ForgeScriptUrl = url
 		print("[Forge] remote " .. url)
 		break
 	end
 	src = nil
 end
-if type(src) == "string" and #src > 80 and string.find(src, "ForgeFarm") then
+
+if goodSource(src) then
 	if type(writefileFn) == "function" then
 		pcall(writefileFn, CACHE_FILE, src)
 	end
@@ -124,7 +148,7 @@ if type(isfileFn) == "function" and type(readfileFn) == "function" then
 		end
 		return nil
 	end)
-	if ok and type(cached) == "string" and #cached > 80 then
+	if ok and goodSource(cached) then
 		runSource(cached, "cache")
 		return
 	end
