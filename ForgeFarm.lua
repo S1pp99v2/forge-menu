@@ -1,6 +1,6 @@
 --!nocheck
 --!nolint
-local FORGE_VERSION = "1.1.9"
+local FORGE_VERSION = "1.1.10"
 print("[Forge] boot " .. FORGE_VERSION)
 
 local function grab(name)
@@ -2828,13 +2828,37 @@ local function bindUi()
 		return folder and folder:FindFirstChild(name)
 	end
 
-	local function fillRockIcon(vf, rockName, kind)
-		local src = findAsset(kind or "Rock", rockName)
-		if not src then
+	local function aimViewport(vf, model)
+		local cam = vf and vf.CurrentCamera
+		if not (cam and model and model.Parent) then
 			return
 		end
-		local world = Instance.new("WorldModel")
-		world.Parent = vf
+		local ok, cf, size = pcall(function()
+			return model:GetBoundingBox()
+		end)
+		if not (ok and cf and size) then
+			return
+		end
+		local abs = vf.AbsoluteSize
+		local aspect = (abs.X > 2 and abs.Y > 2) and (abs.X / abs.Y) or 1
+		cam.FieldOfView = 1
+		local yFov2 = math.rad(cam.FieldOfView / 2)
+		local tany = math.tan(yFov2)
+		local cFov2 = math.atan(tany * math.min(1, aspect))
+		local dist = (size.Magnitude / 2) / math.max(math.sin(cFov2), 1e-6)
+		cam.CFrame = CFrame.new(cf.Position) * CFrame.fromEulerAnglesYXZ(math.rad(-20), 0, math.rad(10)) * CFrame.new(0, 0, dist)
+	end
+
+	local function fillRockIcon(vf, rockName, kind)
+		local src = findAsset(kind or "Rock", rockName)
+		if not (vf and src) then
+			return
+		end
+		for _, child in ipairs(vf:GetChildren()) do
+			if child:IsA("WorldModel") or child:IsA("Camera") or child:IsA("Model") or child:IsA("ImageLabel") then
+				child:Destroy()
+			end
+		end
 		local model
 		if src:IsA("Model") then
 			model = src:Clone()
@@ -2847,22 +2871,30 @@ local function bindUi()
 		for _, d in ipairs(model:GetDescendants()) do
 			if d:IsA("Script") or d:IsA("LocalScript") or d:IsA("Sound") then
 				d:Destroy()
+			elseif d:IsA("BasePart") then
+				d.Anchored = true
 			end
 		end
+		local usedGame = false
 		pcall(function()
-			model:PivotTo(CFrame.new())
+			local knit = require(ReplicatedStorage.Shared.Packages.Knit)
+			local vp = knit.GetController("UIController").Modules.Viewport
+			if vp and vp.new then
+				vp.new(vf, model)
+				usedGame = true
+			end
 		end)
-		model.Parent = world
+		if usedGame then
+			task.defer(aimViewport, vf, model)
+			return
+		end
+		model.Parent = vf
 		local cam = Instance.new("Camera")
+		cam.FieldOfView = 1
 		cam.Parent = vf
 		vf.CurrentCamera = cam
-		local ok, cf, size = pcall(function()
-			return model:GetBoundingBox()
-		end)
-		if ok and cf and size then
-			local m = math.max(size.X, size.Y, size.Z, 1)
-			cam.CFrame = CFrame.lookAt(cf.Position + Vector3.new(m, m * 0.42, m) * 0.95, cf.Position)
-		end
+		aimViewport(vf, model)
+		task.defer(aimViewport, vf, model)
 	end
 
 	local function fillSellIcon(vf, info)
@@ -2872,7 +2904,7 @@ local function bindUi()
 		vf:SetAttribute("Filled", true)
 		local kind = info.kind == "ore" and "Ore" or (info.kind == "mat" and "Material" or "Rune")
 		fillRockIcon(vf, info.id, kind)
-		if vf:FindFirstChildOfClass("WorldModel") then
+		if vf.CurrentCamera or vf:FindFirstChildOfClass("Model") or vf:FindFirstChildOfClass("WorldModel") then
 			return
 		end
 		if type(info.icon) == "string" and info.icon ~= "" then
