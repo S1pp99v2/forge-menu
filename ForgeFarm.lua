@@ -1,6 +1,6 @@
 --!nocheck
 --!nolint
-local FORGE_VERSION = "1.1.1"
+local FORGE_VERSION = "1.1.2"
 print("[Forge] boot " .. FORGE_VERSION)
 
 local function grab(name)
@@ -1675,8 +1675,9 @@ local function bindFarm()
 
 	task.spawn(function()
 		while stillMine() do
+			local mineSwing = state.mineOn and state.atkOn
 			local huntSwing = state.huntOn and Flow.aliveHunt(Flow.huntTarget) and Flow.atHuntStand(Flow.huntTarget)
-			if (state.atkOn or huntSwing) and not Flow.swingBusy then
+			if (mineSwing or huntSwing) and not Flow.swingBusy then
 				Flow.swingBusy = true
 				task.spawn(function()
 					pcall(Flow.swingWeapon)
