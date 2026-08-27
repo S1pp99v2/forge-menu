@@ -2,7 +2,10 @@
 -- 1) 把下面 SCRIPT_URL 换成你的 Raw 地址（Gist / GitHub raw）
 -- 2) 只把这一份发给朋友，让他们在 Potassium 里执行
 
-local SCRIPT_URL = "https://raw.githubusercontent.com/S1pp99v2/forge-menu/main/ForgeFarm.lua"
+local SCRIPT_URLS = {
+	"https://cdn.jsdelivr.net/gh/S1pp99v2/forge-menu@main/ForgeFarm.lua",
+	"https://raw.githubusercontent.com/S1pp99v2/forge-menu/main/ForgeFarm.lua",
+}
 local CACHE_FILE = "ForgeFarm.cache.lua"
 
 local function grab(name)
@@ -92,14 +95,19 @@ local function runSource(src, from)
 	fn()
 end
 
-if type(SCRIPT_URL) ~= "string" or SCRIPT_URL == "" or string.find(SCRIPT_URL, "PASTE_YOUR_RAW_URL") then
-	warn("[Forge] 先把 ForgeLoader 里的 SCRIPT_URL 换成 Raw 地址")
-	return
+env._ForgeScriptUrls = SCRIPT_URLS
+env._ForgeScriptUrl = SCRIPT_URLS[1]
+
+local src = nil
+for _, url in ipairs(SCRIPT_URLS) do
+	src = httpGet(url)
+	if type(src) == "string" and #src > 80 and string.find(src, "ForgeFarm") then
+		env._ForgeScriptUrl = url
+		print("[Forge] remote " .. url)
+		break
+	end
+	src = nil
 end
-
-env._ForgeScriptUrl = SCRIPT_URL
-
-local src = httpGet(SCRIPT_URL)
 if type(src) == "string" and #src > 80 and string.find(src, "ForgeFarm") then
 	if type(writefileFn) == "function" then
 		pcall(writefileFn, CACHE_FILE, src)
