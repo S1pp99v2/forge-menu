@@ -1,6 +1,6 @@
 --!nocheck
 --!nolint
-local FORGE_VERSION = "1.1.4"
+local FORGE_VERSION = "1.1.5"
 print("[Forge] boot " .. FORGE_VERSION)
 
 local function grab(name)
@@ -789,7 +789,7 @@ end
 function Flow.buildSellCatalog()
 	Flow.sellItems = {}
 	local seen = {}
-	local function add(id, kind, sort, extra)
+	local function add(id, kind, sort, extra, icon)
 		if type(id) ~= "string" or id == "" or seen[kind .. ":" .. id] then
 			return
 		end
@@ -799,13 +799,14 @@ function Flow.buildSellCatalog()
 			kind = kind,
 			sort = tonumber(sort) or 0,
 			label = extra or Flow.sellLabel(id),
+			icon = type(icon) == "string" and icon or nil,
 		})
 	end
 	local ok, Ore = pcall(require, ReplicatedStorage.Shared.Data.Ore)
 	if ok and type(Ore) == "table" then
 		for _, v in ipairs(Ore) do
 			if type(v) == "table" and type(v.Name) == "string" then
-				add(v.Name, "ore", v.PriceMultiplier or v.Multiplier)
+				add(v.Name, "ore", v.PriceMultiplier or v.Multiplier, nil, v.Slot and v.Slot.Icon)
 			end
 		end
 	end
@@ -813,7 +814,7 @@ function Flow.buildSellCatalog()
 	if ok2 and type(Mat) == "table" and type(Mat.Items) == "table" then
 		for _, v in ipairs(Mat.Items) do
 			if type(v) == "table" and type(v.Name) == "string" then
-				add(v.Name, "mat", v.Price)
+				add(v.Name, "mat", v.Price, nil, v.Slot and v.Slot.Icon)
 			end
 		end
 	end
@@ -822,7 +823,7 @@ function Flow.buildSellCatalog()
 		for id, v in pairs(Runes.Runes) do
 			if type(v) == "table" then
 				local lab = Flow.sellLabel(v.Name or id)
-				add(id, "rune", v.SellPriceMultiplier or v.PriceMultiplier or 1, lab)
+				add(id, "rune", v.SellPriceMultiplier or v.PriceMultiplier or 1, lab, v.Slot and v.Slot.Icon)
 			end
 		end
 	end
@@ -2031,6 +2032,9 @@ local function bindFarm()
 			if pack and pack.update then
 				pack.update(#byKind[kind])
 			end
+			if pack and pack.body and pack.body.Visible and type(Flow.ensureSellIcons) == "function" then
+				Flow.ensureSellIcons(pack.body)
+			end
 		end
 	end
 
@@ -2419,6 +2423,46 @@ local function bindUi()
 			local folder = extras and extras:FindFirstChild("Potion")
 			return folder and (folder:FindFirstChild(name) or folder:FindFirstChild(name .. "2"))
 		end
+		if kind == "Ore" then
+			local folder = assets:FindFirstChild("Ores")
+			return folder and folder:FindFirstChild(name, true)
+		end
+		if kind == "Material" then
+			local extras = assets:FindFirstChild("Extras")
+			local folders = {
+				assets:FindFirstChild("Materials"),
+				extras and extras:FindFirstChild("Material"),
+				extras and extras:FindFirstChild("Essence"),
+				extras and extras:FindFirstChild("Materials"),
+			}
+			for _, folder in ipairs(folders) do
+				if folder then
+					local found = folder:FindFirstChild(name, true) or folder:FindFirstChild((string.gsub(name, " ", "")), true)
+					if found then
+						return found
+					end
+				end
+			end
+			return nil
+		end
+		if kind == "Rune" then
+			local extras = assets:FindFirstChild("Extras")
+			local folders = {
+				assets:FindFirstChild("Runes"),
+				extras and extras:FindFirstChild("Rune"),
+				extras and extras:FindFirstChild("Runes"),
+			}
+			local short = string.match(name, "^(.-)_T%d+$") or name
+			for _, folder in ipairs(folders) do
+				if folder then
+					local found = folder:FindFirstChild(name, true) or folder:FindFirstChild(short, true)
+					if found then
+						return found
+					end
+				end
+			end
+			return nil
+		end
 		local folder = assets:FindFirstChild("Rocks")
 		return folder and folder:FindFirstChild(name)
 	end
@@ -2459,6 +2503,48 @@ local function bindUi()
 			cam.CFrame = CFrame.lookAt(cf.Position + Vector3.new(m, m * 0.42, m) * 0.95, cf.Position)
 		end
 	end
+
+	local function fillSellIcon(vf, info)
+		if not (vf and info) or vf:GetAttribute("Filled") then
+			return
+		end
+		vf:SetAttribute("Filled", true)
+		local kind = info.kind == "ore" and "Ore" or (info.kind == "mat" and "Material" or "Rune")
+		fillRockIcon(vf, info.id, kind)
+		if vf:FindFirstChildOfClass("WorldModel") then
+			return
+		end
+		if type(info.icon) == "string" and info.icon ~= "" then
+			local img = Instance.new("ImageLabel")
+			img.BackgroundTransparency = 1
+			img.BorderSizePixel = 0
+			img.Image = info.icon
+			img.ScaleType = Enum.ScaleType.Fit
+			img.Size = UDim2.fromScale(1, 1)
+			img.Parent = vf
+		end
+	end
+
+	local function ensureSellIcons(body)
+		if not body then
+			return
+		end
+		for _, child in ipairs(body:GetChildren()) do
+			if child:IsA("GuiButton") and child.Visible then
+				local vf = child:FindFirstChildOfClass("ViewportFrame")
+				local id = child:GetAttribute("SellId")
+				if vf and id then
+					for _, info in ipairs(Flow.sellItems) do
+						if info.id == id then
+							fillSellIcon(vf, info)
+							break
+						end
+					end
+				end
+			end
+		end
+	end
+	Flow.ensureSellIcons = ensureSellIcons
 
 	local function mkRock(parent, rockName, order)
 		local b = Instance.new("TextButton")
@@ -2533,6 +2619,39 @@ local function bindUi()
 		lab.Position = UDim2.fromOffset(4, 96)
 		lab.Size = UDim2.new(1, -8, 0, 28)
 		lab.Parent = b
+		return b
+	end
+
+	local function mkSellCard(parent, info, order)
+		local kind = info.kind == "ore" and "Ore" or (info.kind == "mat" and "Material" or "Rune")
+		local b = mkCard(parent, info.id, info.label, kind, order)
+		b.Size = UDim2.fromOffset(104, 142)
+		b:SetAttribute("SellId", info.id)
+		b:SetAttribute("SellKind", info.kind)
+		local lab = b:FindFirstChild("NameLab")
+		if lab then
+			lab.Position = UDim2.fromOffset(4, 94)
+			lab.Size = UDim2.new(1, -8, 0, 22)
+		end
+		local meta = Instance.new("TextLabel")
+		meta.Name = "MetaLab"
+		meta.BackgroundTransparency = 1
+		meta.Font = Enum.Font.Gotham
+		meta.Text = ""
+		meta.TextColor3 = C.dim
+		meta.TextSize = 11
+		meta.TextXAlignment = Enum.TextXAlignment.Center
+		meta.Position = UDim2.fromOffset(4, 116)
+		meta.Size = UDim2.new(1, -8, 0, 22)
+		meta.Parent = b
+		local vf = b:FindFirstChildOfClass("ViewportFrame")
+		if vf then
+			vf:SetAttribute("Filled", false)
+			for _, child in ipairs(vf:GetChildren()) do
+				child:Destroy()
+			end
+			vf.CurrentCamera = nil
+		end
 		return b
 	end
 
@@ -3045,10 +3164,12 @@ local function bindUi()
 		body.LayoutOrder = 2
 		body.Visible = state.openSell == cat.id
 		body.Parent = wrap
-		local bodyList = Instance.new("UIListLayout")
-		bodyList.Padding = UDim.new(0, 3)
-		bodyList.SortOrder = Enum.SortOrder.LayoutOrder
-		bodyList.Parent = body
+		local gridLay = Instance.new("UIGridLayout")
+		gridLay.CellPadding = UDim2.fromOffset(6, 6)
+		gridLay.CellSize = UDim2.fromOffset(104, 142)
+		gridLay.FillDirection = Enum.FillDirection.Horizontal
+		gridLay.SortOrder = Enum.SortOrder.LayoutOrder
+		gridLay.Parent = body
 		local catId = cat.id
 		local function countKind()
 			local n = 0
@@ -3085,47 +3206,17 @@ local function bindUi()
 						pack.update()
 					end
 				end
+				task.defer(ensureSellIcons, body)
 				return
 			end
 			updateHead()
 		end)
 		for _, info in ipairs(Flow.sellItems) do
 			if info.kind == cat.id then
-				local row = Instance.new("TextButton")
-				row.BackgroundColor3 = C.off
-				row.BorderSizePixel = 0
-				row.Text = ""
-				row.AutoButtonColor = true
-				row.Size = UDim2.new(1, 0, 0, 28)
-				row.LayoutOrder = 1
-				row.Parent = body
-				corner(row, 4)
-				local lab = Instance.new("TextLabel")
-				lab.Name = "NameLab"
-				lab.BackgroundTransparency = 1
-				lab.Font = Enum.Font.Gotham
-				lab.Text = "关  " .. info.label
-				lab.TextColor3 = C.text
-				lab.TextSize = 12
-				lab.TextXAlignment = Enum.TextXAlignment.Left
-				lab.TextTruncate = Enum.TextTruncate.AtEnd
-				lab.Position = UDim2.fromOffset(8, 0)
-				lab.Size = UDim2.new(1, -118, 1, 0)
-				lab.Parent = row
-				local meta = Instance.new("TextLabel")
-				meta.Name = "MetaLab"
-				meta.BackgroundTransparency = 1
-				meta.Font = Enum.Font.Gotham
-				meta.Text = ""
-				meta.TextColor3 = C.dim
-				meta.TextSize = 12
-				meta.TextXAlignment = Enum.TextXAlignment.Right
-				meta.Position = UDim2.new(1, -110, 0, 0)
-				meta.Size = UDim2.fromOffset(102, 28)
-				meta.Parent = row
-				Flow.sellChecks[info.id] = row
+				local card = mkSellCard(body, info, 1)
+				Flow.sellChecks[info.id] = card
 				local itemId = info.id
-				row.MouseButton1Click:Connect(function()
+				card.MouseButton1Click:Connect(function()
 					state.sellSel[itemId] = not state.sellSel[itemId]
 					Flow.refreshSellList()
 				end)
