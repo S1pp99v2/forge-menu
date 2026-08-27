@@ -1,6 +1,6 @@
 --!nocheck
 --!nolint
-local FORGE_VERSION = "1.1.8"
+local FORGE_VERSION = "1.1.9"
 print("[Forge] boot " .. FORGE_VERSION)
 
 local function grab(name)
@@ -142,6 +142,7 @@ local state = {
 	sellOn = false,
 	sellDesc = true,
 	sellOwned = false,
+	sellWait = 60,
 	uiOn = true,
 	page = "auto",
 	flySpeed = 70,
@@ -226,6 +227,9 @@ function Flow.applyCfg(cfg)
 	end
 	if tonumber(cfg.huntHeight) then
 		state.huntHeight = math.clamp(tonumber(cfg.huntHeight), 8, 28)
+	end
+	if tonumber(cfg.sellWait) then
+		state.sellWait = math.clamp(math.floor(tonumber(cfg.sellWait)), 10, 600)
 	end
 	if cfg.huntSingle == true then
 		state.huntSingle = true
@@ -349,6 +353,7 @@ function Flow.dumpCfg()
 		sellSel = sellSel,
 		sellDesc = state.sellDesc == true,
 		sellOwned = state.sellOwned == true,
+		sellWait = state.sellWait,
 		winW = win and win.AbsoluteSize.X or state.winW,
 		winH = win and win.AbsoluteSize.Y or state.winH,
 		winX = win and win.AbsolutePosition.X or state.winX,
@@ -1562,10 +1567,14 @@ local function bindFarm()
 		return state.mineOn or state.huntOn
 	end
 
+	function Flow.sellInterval()
+		return math.clamp(math.floor(tonumber(state.sellWait) or 60), 10, 600)
+	end
+
 	function Flow.armSellClock()
 		if state.sellOn and Flow.farmOn() and not Flow.sellFly then
 			if not Flow.nextSellAt or Flow.nextSellAt <= 0 then
-				Flow.nextSellAt = os.clock() + 60
+				Flow.nextSellAt = os.clock() + Flow.sellInterval()
 			end
 		end
 	end
@@ -1637,7 +1646,7 @@ local function bindFarm()
 			local basket = Flow.makeSellBasket()
 			if next(basket) == nil then
 				Flow.clearSellTrip()
-				Flow.nextSellAt = os.clock() + 60
+				Flow.nextSellAt = os.clock() + Flow.sellInterval()
 				return
 			end
 			if not Flow.sellerPos() then
@@ -1648,7 +1657,7 @@ local function bindFarm()
 				if Flow.doSell(basket) then
 					Flow.clearSellTrip()
 					Flow.lastSell = os.clock()
-					Flow.nextSellAt = os.clock() + 60
+					Flow.nextSellAt = os.clock() + Flow.sellInterval()
 					state.status = "已出售"
 					return
 				end
@@ -1664,12 +1673,12 @@ local function bindFarm()
 			return
 		end
 		if not Flow.hasAnySellSel() then
-			Flow.nextSellAt = os.clock() + 60
+			Flow.nextSellAt = os.clock() + Flow.sellInterval()
 			return
 		end
 		local basket = Flow.makeSellBasket()
 		if next(basket) == nil then
-			Flow.nextSellAt = os.clock() + 60
+			Flow.nextSellAt = os.clock() + Flow.sellInterval()
 			return
 		end
 		if not Flow.sellerPos() then
@@ -3457,7 +3466,7 @@ local function bindUi()
 	local sellHint = Instance.new("TextLabel")
 	sellHint.BackgroundTransparency = 1
 	sellHint.Font = Enum.Font.Gotham
-	sellHint.Text = "勾好要卖的。挖矿或打怪时每1分钟飞去商人卖一次，收藏的不卖。"
+	sellHint.Text = "勾好要卖的。挖矿或打怪时按间隔飞去商人卖一次，收藏的不卖。"
 	sellHint.TextColor3 = C.dim
 	sellHint.TextSize = 11
 	sellHint.TextXAlignment = Enum.TextXAlignment.Left
@@ -3465,7 +3474,21 @@ local function bindUi()
 	sellHint.Size = UDim2.new(1, 0, 0, 28)
 	sellHint.LayoutOrder = 2
 	sellHint.Parent = sellPage
-	local sellAct = mkAct(sellPage, 3)
+	local sellNums = Instance.new("Frame")
+	sellNums.BackgroundTransparency = 1
+	sellNums.Size = UDim2.new(1, 0, 0, 40)
+	sellNums.LayoutOrder = 3
+	sellNums.Parent = sellPage
+	local waitRow = mkRow(sellNums, "出售间隔(秒)", tostring(state.sellWait), 1, UDim2.new(0.48, 0, 1, 0))
+	bindNum(waitRow, function()
+		return Flow.sellInterval()
+	end, function(v)
+		state.sellWait = v
+		if state.sellOn and Flow.farmOn() and not Flow.sellFly then
+			Flow.nextSellAt = os.clock() + v
+		end
+	end, 10, 10, 600)
+	local sellAct = mkAct(sellPage, 4)
 	local sortBtn = mkPlain(sellAct, state.sellDesc and "排序 高→低" or "排序 低→高", 1, C.tab)
 	sortBtn.Size = UDim2.new(0.34, -3, 1, 0)
 	local ownedBtn = mkPlain(sellAct, state.sellOwned and "只看身上" or "显示全部", 2, C.btn)
@@ -3479,9 +3502,9 @@ local function bindUi()
 	sellNone.Position = UDim2.new(0.835, 2, 0, 0)
 
 	local sellCats = {
-		{ id = "ore", title = "矿石", order = 4 },
-		{ id = "mat", title = "材料", order = 5 },
-		{ id = "rune", title = "符文", order = 6 },
+		{ id = "ore", title = "矿石", order = 5 },
+		{ id = "mat", title = "材料", order = 6 },
+		{ id = "rune", title = "符文", order = 7 },
 	}
 	for _, cat in ipairs(sellCats) do
 		local wrap = Instance.new("Frame")
