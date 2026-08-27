@@ -1,6 +1,6 @@
 --!nocheck
 --!nolint
-local FORGE_VERSION = "1.1.3"
+local FORGE_VERSION = "1.1.4"
 print("[Forge] boot " .. FORGE_VERSION)
 
 local function grab(name)
@@ -139,6 +139,9 @@ local state = {
 	atkOn = false,
 	huntOn = false,
 	potOn = false,
+	sellOn = false,
+	sellDesc = true,
+	sellOwned = false,
 	uiOn = true,
 	page = "auto",
 	flySpeed = 70,
@@ -149,7 +152,9 @@ local state = {
 	selected = {},
 	huntSel = {},
 	potSel = {},
+	sellSel = {},
 	openMap = nil,
+	openSell = "ore",
 	status = "待机",
 	winW = 920,
 	winH = 400,
@@ -172,12 +177,17 @@ local Flow = {
 	checks = {},
 	huntChecks = {},
 	potChecks = {},
+	sellChecks = {},
 	mapHeads = {},
+	sellHeads = {},
 	swingBusy = false,
 	window = nil,
 	huntTarget = nil,
 	buyName = nil,
+	sellFly = nil,
 	lastDrink = {},
+	lastSell = 0,
+	sellItems = {},
 }
 
 local CFG_FILE = "ForgeFarm.json"
@@ -233,6 +243,20 @@ function Flow.applyCfg(cfg)
 				state.potSel[name] = true
 			end
 		end
+	end
+	if type(cfg.sellSel) == "table" then
+		state.sellSel = {}
+		for _, name in ipairs(cfg.sellSel) do
+			if type(name) == "string" and name ~= "" then
+				state.sellSel[name] = true
+			end
+		end
+	end
+	if cfg.sellDesc == false then
+		state.sellDesc = false
+	end
+	if cfg.sellOwned == true then
+		state.sellOwned = true
 	end
 	if tonumber(cfg.winW) and tonumber(cfg.winH) then
 		state.winW = math.clamp(tonumber(cfg.winW), 640, 1600)
@@ -302,6 +326,13 @@ function Flow.dumpCfg()
 		end
 	end
 	table.sort(potSel)
+	local sellSel = {}
+	for name, on in pairs(state.sellSel) do
+		if on then
+			sellSel[#sellSel + 1] = name
+		end
+	end
+	table.sort(sellSel)
 	local win = Flow.window
 	return {
 		flySpeed = state.flySpeed,
@@ -313,6 +344,9 @@ function Flow.dumpCfg()
 		selected = sel,
 		huntSel = huntSel,
 		potSel = potSel,
+		sellSel = sellSel,
+		sellDesc = state.sellDesc == true,
+		sellOwned = state.sellOwned == true,
 		winW = win and win.AbsoluteSize.X or state.winW,
 		winH = win and win.AbsoluteSize.Y or state.winH,
 		winX = win and win.AbsolutePosition.X or state.winX,
@@ -667,6 +701,133 @@ function Flow.potInfo(id)
 	end
 	return nil
 end
+
+Flow.zhSell = {
+	Stone = "石头",
+	["Sand Stone"] = "砂岩",
+	Copper = "铜",
+	Tin = "锡",
+	Iron = "铁",
+	Silver = "银",
+	Gold = "金",
+	Platinum = "铂",
+	Cobalt = "钴",
+	Titanium = "钛",
+	Tungsten = "钨",
+	Obsidian = "黑曜石",
+	Quartz = "石英",
+	Amethyst = "紫晶",
+	Emerald = "绿宝石",
+	Ruby = "红宝石",
+	Sapphire = "蓝宝石",
+	Diamond = "钻石",
+	Topaz = "黄玉",
+	Onyx = "缟玛瑙",
+	Uranium = "铀",
+	Mythril = "秘银",
+	Sulfur = "硫磺",
+	Graphite = "石墨",
+	Pumice = "浮石",
+	Grass = "草",
+	Bamboo = "竹子",
+	["Volcanic Rock"] = "火山岩",
+	["Water Stone"] = "水石",
+	["Moon Stone"] = "月石",
+	["Sun Stone"] = "日石",
+	["Blue Crystal"] = "蓝水晶",
+	["Green Crystal"] = "绿水晶",
+	["Orange Crystal"] = "橙水晶",
+	["Magenta Crystal"] = "品红水晶",
+	["Crimson Crystal"] = "绯红水晶",
+	["Rainbow Crystal"] = "彩虹水晶",
+	["Arcane Crystal"] = "奥术水晶",
+	["Eye Ore"] = "眼矿",
+	["Evil Eye"] = "邪眼",
+	["Rock Seed"] = "石种",
+	["Heart Of The Island"] = "岛之心",
+	["Golem Heart"] = "魔像之心",
+	["Yeti Heart"] = "雪人心",
+	["Stolen Heart"] = "失心",
+	["Prismatic Heart"] = "棱镜之心",
+	["Tiger's Eye"] = "虎眼石",
+	["Lapis Lazuli"] = "青金石",
+	["Frost Fossil"] = "霜化石",
+	["North Star"] = "北极星",
+	["Star Dust"] = "星尘",
+	["Anti Matter"] = "反物质",
+	Matter = "物质",
+	["Lucky Cat"] = "招财猫",
+	["Oni Mask"] = "鬼面",
+	["Heat Steel"] = "热钢",
+	["Heavenly Orb"] = "天球",
+	["Supermassive Black Hole"] = "超大黑洞",
+	["Root Spire"] = "根塔",
+	["Tide Carve"] = "潮刻",
+	["Blue Gem Quill"] = "蓝宝石羽",
+	["Sealed Curse"] = "封咒",
+	["Dark Boneite"] = "暗骨矿",
+	["Fierce Jade"] = "猛玉",
+	["Cyanite Jade"] = "青玉",
+	Yin = "阴",
+	Yang = "阳",
+	["Yin-Yang"] = "阴阳",
+	["Tiny Essence"] = "微精华",
+	["Small Essence"] = "小精华",
+	["Medium Essence"] = "中精华",
+	["Large Essence"] = "大精华",
+	["Greater Essence"] = "强精华",
+	["Superior Essence"] = "超精华",
+	["Epic Essence"] = "史诗精华",
+	["Legendary Essence"] = "传奇精华",
+	["Mythical Essence"] = "神话精华",
+}
+
+function Flow.sellLabel(name)
+	return Flow.zhSell[name] or Flow.zh[name] or name
+end
+
+function Flow.buildSellCatalog()
+	Flow.sellItems = {}
+	local seen = {}
+	local function add(id, kind, sort, extra)
+		if type(id) ~= "string" or id == "" or seen[kind .. ":" .. id] then
+			return
+		end
+		seen[kind .. ":" .. id] = true
+		table.insert(Flow.sellItems, {
+			id = id,
+			kind = kind,
+			sort = tonumber(sort) or 0,
+			label = extra or Flow.sellLabel(id),
+		})
+	end
+	local ok, Ore = pcall(require, ReplicatedStorage.Shared.Data.Ore)
+	if ok and type(Ore) == "table" then
+		for _, v in ipairs(Ore) do
+			if type(v) == "table" and type(v.Name) == "string" then
+				add(v.Name, "ore", v.PriceMultiplier or v.Multiplier)
+			end
+		end
+	end
+	local ok2, Mat = pcall(require, ReplicatedStorage.Shared.Data.Materials)
+	if ok2 and type(Mat) == "table" and type(Mat.Items) == "table" then
+		for _, v in ipairs(Mat.Items) do
+			if type(v) == "table" and type(v.Name) == "string" then
+				add(v.Name, "mat", v.Price)
+			end
+		end
+	end
+	local ok3, Runes = pcall(require, ReplicatedStorage.Shared.Data.Runes)
+	if ok3 and type(Runes) == "table" and type(Runes.Runes) == "table" then
+		for id, v in pairs(Runes.Runes) do
+			if type(v) == "table" then
+				local lab = Flow.sellLabel(v.Name or id)
+				add(id, "rune", v.SellPriceMultiplier or v.PriceMultiplier or 1, lab)
+			end
+		end
+	end
+end
+Flow.buildSellCatalog()
 
 local function bindFarm()
 	local function hook(conn)
@@ -1029,6 +1190,158 @@ local function bindFarm()
 		return ok
 	end
 
+	function Flow.favMap()
+		local data = Flow.replicaData()
+		local fav = data and data.Favorites
+		return type(fav) == "table" and fav or {}
+	end
+
+	function Flow.sellQty(info)
+		local data = Flow.replicaData()
+		if not (info and data) then
+			return 0
+		end
+		if info.kind == "ore" then
+			return math.max(0, tonumber(data.Inventory and data.Inventory[info.id]) or 0)
+		end
+		local misc = data.Inventory and data.Inventory.Misc
+		if type(misc) ~= "table" then
+			return 0
+		end
+		local n = 0
+		for _, item in pairs(misc) do
+			if type(item) == "table" then
+				if info.kind == "mat" and item.Name == info.id then
+					n = n + (tonumber(item.Quantity) or 1)
+				elseif info.kind == "rune" and item.Id == info.id then
+					n = n + 1
+				end
+			end
+		end
+		return n
+	end
+
+	function Flow.makeSellBasket()
+		local data = Flow.replicaData()
+		if not data then
+			return {}
+		end
+		local fav = Flow.favMap()
+		local basket = {}
+		local misc = data.Inventory and data.Inventory.Misc
+		for _, info in ipairs(Flow.sellItems) do
+			if state.sellSel[info.id] then
+				if info.kind == "ore" then
+					if not fav[info.id] then
+						local q = math.max(0, tonumber(data.Inventory and data.Inventory[info.id]) or 0)
+						if q > 0 then
+							basket[info.id] = q
+						end
+					end
+				elseif info.kind == "mat" then
+					if not fav[info.id] then
+						local q = Flow.sellQty(info)
+						if q > 0 then
+							basket[info.id] = q
+						end
+					end
+				elseif info.kind == "rune" and type(misc) == "table" then
+					for _, item in pairs(misc) do
+						if type(item) == "table" and item.Id == info.id and type(item.GUID) == "string" and not fav[item.GUID] then
+							basket[item.GUID] = 1
+						end
+					end
+				end
+			end
+		end
+		return basket
+	end
+
+	function Flow.sellerPos()
+		local prox = workspace:FindFirstChild("Proximity")
+		local npc = prox and prox:FindFirstChild("Greedy Cey")
+		if not npc then
+			return nil
+		end
+		local part = npc.PrimaryPart or npc:FindFirstChildWhichIsA("BasePart", true)
+		return part and part.Position or nil
+	end
+
+	function Flow.nearSeller()
+		local pos = Flow.sellerPos()
+		local hrp = Flow.hrp()
+		if not (pos and hrp) then
+			return false
+		end
+		return (hrp.Position - pos).Magnitude <= 14
+	end
+
+	function Flow.doSell(basket)
+		if type(basket) ~= "table" or next(basket) == nil then
+			return false
+		end
+		local ok, inv = pcall(function()
+			return require(ReplicatedStorage.Shared.Packages.Knit).GetService("InventoryService")
+		end)
+		if ok and inv then
+			local ok2 = pcall(function()
+				inv:SellAnywhere(basket):await()
+			end)
+			if ok2 then
+				return true
+			end
+		end
+		local ok3, rf = pcall(function()
+			return ReplicatedStorage.Shared.Packages.Knit.Services.InventoryService.RF.SellAnywhere
+		end)
+		if ok3 and rf then
+			return pcall(function()
+				rf:InvokeServer(basket)
+			end)
+		end
+		if Flow.nearSeller() then
+			local ok4 = pcall(function()
+				local knit = require(ReplicatedStorage.Shared.Packages.Knit)
+				local ds = knit.GetService("DialogueService")
+				local ui = knit.GetController("UIController")
+				if ui and ui.Modules and ui.Modules.MiscSell then
+					ui.Modules.MiscSell.SellInfo = ui.Modules.MiscSell.SellInfo or {}
+					ui.Modules.MiscSell.SellInfo.Basket = basket
+				end
+				ds:RunCommand("SellConfirm", { Basket = basket })
+			end)
+			return ok4
+		end
+		return false
+	end
+
+	function Flow.tickSell()
+		if not state.sellOn then
+			Flow.sellFly = nil
+			return
+		end
+		if os.clock() - (Flow.lastSell or 0) < 1.6 then
+			return
+		end
+		local basket = Flow.makeSellBasket()
+		if next(basket) == nil then
+			Flow.sellFly = nil
+			return
+		end
+		if Flow.doSell(basket) then
+			Flow.sellFly = nil
+			Flow.lastSell = os.clock()
+			state.status = "出售中"
+			return
+		end
+		if Flow.sellerPos() then
+			Flow.sellFly = true
+			state.status = "去商人"
+			return
+		end
+		state.status = "这图不能卖"
+	end
+
 	function Flow.needPotion(id)
 		local info = Flow.potInfo(id)
 		if not info then
@@ -1344,6 +1657,10 @@ local function bindFarm()
 			local pos = Flow.shopPos(Flow.buyName)
 			return CFrame.new(pos + Vector3.new(0, 5, 0)), pos, "buy"
 		end
+		if Flow.sellFly and Flow.sellerPos() then
+			local pos = Flow.sellerPos()
+			return CFrame.new(pos + Vector3.new(0, 5, 0)), pos, "sell"
+		end
 		if state.huntOn and Flow.aliveHunt(Flow.huntTarget) then
 			local dest = Flow.huntStandCF(Flow.huntTarget)
 			local look = Flow.mobCenter(Flow.huntTarget)
@@ -1456,7 +1773,7 @@ local function bindFarm()
 	end
 
 	function Flow.tickMine()
-		if state.huntOn or Flow.buyName then
+		if state.huntOn or Flow.buyName or Flow.sellFly then
 			Flow.stopHold()
 			return
 		end
@@ -1514,7 +1831,7 @@ local function bindFarm()
 			Flow.huntTarget = nil
 			return
 		end
-		if Flow.buyName then
+		if Flow.buyName or Flow.sellFly then
 			return
 		end
 		if not Flow.hasHuntSel() then
@@ -1629,6 +1946,94 @@ local function bindFarm()
 		end
 	end
 
+	function Flow.refreshSellList()
+		local byKind = { ore = {}, mat = {}, rune = {} }
+		for _, info in ipairs(Flow.sellItems) do
+			local qty = Flow.sellQty(info)
+			if (not state.sellOwned) or qty > 0 then
+				local pack = byKind[info.kind]
+				if pack then
+					pack[#pack + 1] = info
+				end
+			end
+		end
+		local function sortPack(list)
+			table.sort(list, function(a, b)
+				if a.sort == b.sort then
+					return a.id < b.id
+				end
+				if state.sellDesc then
+					return a.sort > b.sort
+				end
+				return a.sort < b.sort
+			end)
+		end
+		sortPack(byKind.ore)
+		sortPack(byKind.mat)
+		sortPack(byKind.rune)
+		local fav = Flow.favMap()
+		local function paintKind(kind, list)
+			for i, info in ipairs(list) do
+				local btn = Flow.sellChecks[info.id]
+				if btn and btn.Parent then
+					btn.Visible = true
+					btn.LayoutOrder = i
+					local on = state.sellSel[info.id] == true
+					btn.BackgroundColor3 = on and C.on or C.off
+					local qty = Flow.sellQty(info)
+					local starred = fav[info.id] == true
+					local lab = btn:FindFirstChild("NameLab")
+					local meta = btn:FindFirstChild("MetaLab")
+					local title = (on and "开  " or "关  ") .. info.label
+					if starred then
+						title = title .. "  ★"
+					end
+					if lab then
+						lab.Text = title
+						lab.TextColor3 = qty > 0 and C.text or C.dim
+					end
+					if meta then
+						if info.kind == "ore" then
+							meta.Text = string.format("%.2fx   x%d", info.sort, qty)
+						elseif info.kind == "mat" then
+							meta.Text = string.format("%g金   x%d", info.sort, qty)
+						else
+							meta.Text = "x" .. tostring(qty)
+						end
+						meta.TextColor3 = qty > 0 and C.text or C.dim
+					end
+				end
+			end
+			for id, btn in pairs(Flow.sellChecks) do
+				local info = nil
+				for _, it in ipairs(Flow.sellItems) do
+					if it.id == id then
+						info = it
+						break
+					end
+				end
+				if info and info.kind == kind and btn and btn.Parent then
+					local show = false
+					for _, it in ipairs(list) do
+						if it.id == id then
+							show = true
+							break
+						end
+					end
+					btn.Visible = show
+				end
+			end
+		end
+		paintKind("ore", byKind.ore)
+		paintKind("mat", byKind.mat)
+		paintKind("rune", byKind.rune)
+		for kind, pack in pairs(Flow.sellHeads) do
+			if pack and pack.update then
+				pack.update(#byKind[kind])
+			end
+		end
+	end
+
 	function Flow.restoreCamOcclusion()
 		if Flow.occlusionOn then
 			pcall(function()
@@ -1639,7 +2044,7 @@ local function bindFarm()
 	end
 
 	function Flow.applyFreeCam()
-		if not (state.mineOn or state.huntOn or Flow.buyName) then
+		if not (state.mineOn or state.huntOn or Flow.buyName or Flow.sellFly) then
 			Flow.restoreCamOcclusion()
 			return
 		end
@@ -1731,6 +2136,21 @@ local function bindFarm()
 			else
 				Flow.buyName = nil
 				task.wait(0.3)
+			end
+		end
+	end)
+
+	task.spawn(function()
+		while stillMine() do
+			if state.sellOn then
+				local ok, err = pcall(Flow.tickSell)
+				if not ok then
+					state.status = tostring(err)
+				end
+				task.wait(0.7)
+			else
+				Flow.sellFly = nil
+				task.wait(0.35)
 			end
 		end
 	end)
@@ -1891,7 +2311,8 @@ local function bindUi()
 	local catAuto = mkCat("自动化", 1)
 	local catHunt = mkCat("打怪", 2)
 	local catPot = mkCat("药水", 3)
-	local catOther = mkCat("其他", 4)
+	local catSell = mkCat("出售", 4)
+	local catOther = mkCat("其他", 5)
 
 	local right = Instance.new("Frame")
 	right.BackgroundTransparency = 1
@@ -1920,9 +2341,11 @@ local function bindUi()
 	local scroll = mkPage()
 	local huntPage = mkPage()
 	local potPage = mkPage()
+	local sellPage = mkPage()
 	local otherPage = mkPage()
 	huntPage.Visible = false
 	potPage.Visible = false
+	sellPage.Visible = false
 	otherPage.Visible = false
 
 	local function showPage(name)
@@ -1930,13 +2353,18 @@ local function bindUi()
 		scroll.Visible = name == "auto"
 		huntPage.Visible = name == "hunt"
 		potPage.Visible = name == "pot"
+		sellPage.Visible = name == "sell"
 		otherPage.Visible = name == "other"
 		catAuto.BackgroundColor3 = name == "auto" and C.tab or C.btn
 		catHunt.BackgroundColor3 = name == "hunt" and C.tab or C.btn
 		catPot.BackgroundColor3 = name == "pot" and C.tab or C.btn
+		catSell.BackgroundColor3 = name == "sell" and C.tab or C.btn
 		catOther.BackgroundColor3 = name == "other" and C.tab or C.btn
 		if name == "pot" then
 			Flow.refreshPotChecks()
+		end
+		if name == "sell" then
+			Flow.refreshSellList()
 		end
 	end
 	showPage("auto")
@@ -1948,6 +2376,9 @@ local function bindUi()
 	end)
 	catPot.MouseButton1Click:Connect(function()
 		showPage("pot")
+	end)
+	catSell.MouseButton1Click:Connect(function()
+		showPage("sell")
 	end)
 	catOther.MouseButton1Click:Connect(function()
 		showPage("other")
@@ -2550,10 +2981,192 @@ local function bindUi()
 		Flow.refreshPotChecks()
 	end)
 
+	local sellBtn = mkBtn(sellPage, "自动出售", 1)
+	paintOn(sellBtn, state.sellOn, "自动出售")
+	local sellHint = Instance.new("TextLabel")
+	sellHint.BackgroundTransparency = 1
+	sellHint.Font = Enum.Font.Gotham
+	sellHint.Text = "按分类列出可卖物品。矿石显示倍率。选中且身上有就卖掉，收藏的不卖。"
+	sellHint.TextColor3 = C.dim
+	sellHint.TextSize = 11
+	sellHint.TextXAlignment = Enum.TextXAlignment.Left
+	sellHint.TextWrapped = true
+	sellHint.Size = UDim2.new(1, 0, 0, 28)
+	sellHint.LayoutOrder = 2
+	sellHint.Parent = sellPage
+	local sellAct = mkAct(sellPage, 3)
+	local sortBtn = mkPlain(sellAct, state.sellDesc and "排序 高→低" or "排序 低→高", 1, C.tab)
+	sortBtn.Size = UDim2.new(0.34, -3, 1, 0)
+	local ownedBtn = mkPlain(sellAct, state.sellOwned and "只看身上" or "显示全部", 2, C.btn)
+	ownedBtn.Size = UDim2.new(0.33, -2, 1, 0)
+	ownedBtn.Position = UDim2.new(0.34, 1, 0, 0)
+	local sellAll = mkPlain(sellAct, "全选", 3, C.btn)
+	sellAll.Size = UDim2.new(0.165, -2, 1, 0)
+	sellAll.Position = UDim2.new(0.67, 2, 0, 0)
+	local sellNone = mkPlain(sellAct, "清空", 4, C.btn)
+	sellNone.Size = UDim2.new(0.165, -2, 1, 0)
+	sellNone.Position = UDim2.new(0.835, 2, 0, 0)
+
+	local sellCats = {
+		{ id = "ore", title = "矿石", order = 4 },
+		{ id = "mat", title = "材料", order = 5 },
+		{ id = "rune", title = "符文", order = 6 },
+	}
+	for _, cat in ipairs(sellCats) do
+		local wrap = Instance.new("Frame")
+		wrap.BackgroundTransparency = 1
+		wrap.AutomaticSize = Enum.AutomaticSize.Y
+		wrap.Size = UDim2.new(1, 0, 0, 32)
+		wrap.LayoutOrder = cat.order
+		wrap.Parent = sellPage
+		local wrapList = Instance.new("UIListLayout")
+		wrapList.Padding = UDim.new(0, 4)
+		wrapList.SortOrder = Enum.SortOrder.LayoutOrder
+		wrapList.Parent = wrap
+		local head = Instance.new("TextButton")
+		head.BackgroundColor3 = C.panel
+		head.BorderSizePixel = 0
+		head.Font = Enum.Font.GothamBold
+		head.TextColor3 = C.text
+		head.TextSize = 13
+		head.TextXAlignment = Enum.TextXAlignment.Left
+		head.Size = UDim2.new(1, 0, 0, 32)
+		head.LayoutOrder = 1
+		head.AutoButtonColor = true
+		head.Parent = wrap
+		local hpad = Instance.new("UIPadding")
+		hpad.PaddingLeft = UDim.new(0, 10)
+		hpad.Parent = head
+		corner(head, 4)
+		local body = Instance.new("Frame")
+		body.BackgroundTransparency = 1
+		body.AutomaticSize = Enum.AutomaticSize.Y
+		body.Size = UDim2.new(1, 0, 0, 0)
+		body.LayoutOrder = 2
+		body.Visible = state.openSell == cat.id
+		body.Parent = wrap
+		local bodyList = Instance.new("UIListLayout")
+		bodyList.Padding = UDim.new(0, 3)
+		bodyList.SortOrder = Enum.SortOrder.LayoutOrder
+		bodyList.Parent = body
+		local catId = cat.id
+		local function countKind()
+			local n = 0
+			local total = 0
+			for _, info in ipairs(Flow.sellItems) do
+				if info.kind == catId then
+					total = total + 1
+					if state.sellSel[info.id] then
+						n = n + 1
+					end
+				end
+			end
+			return n, total
+		end
+		local function updateHead(visibleCount)
+			local n, total = countKind()
+			local mark = body.Visible and "▾" or "▸"
+			local extra = visibleCount and ("  显示" .. tostring(visibleCount)) or ""
+			head.Text = mark .. "  " .. cat.title .. "    " .. n .. "/" .. total .. extra
+		end
+		Flow.sellHeads[cat.id] = { update = updateHead, body = body }
+		updateHead()
+		head.MouseButton1Click:Connect(function()
+			if state.openSell == cat.id then
+				state.openSell = nil
+				body.Visible = false
+			else
+				state.openSell = cat.id
+				for id, pack in pairs(Flow.sellHeads) do
+					if pack.body then
+						pack.body.Visible = id == cat.id
+					end
+					if pack.update then
+						pack.update()
+					end
+				end
+				return
+			end
+			updateHead()
+		end)
+		for _, info in ipairs(Flow.sellItems) do
+			if info.kind == cat.id then
+				local row = Instance.new("TextButton")
+				row.BackgroundColor3 = C.off
+				row.BorderSizePixel = 0
+				row.Text = ""
+				row.AutoButtonColor = true
+				row.Size = UDim2.new(1, 0, 0, 28)
+				row.LayoutOrder = 1
+				row.Parent = body
+				corner(row, 4)
+				local lab = Instance.new("TextLabel")
+				lab.Name = "NameLab"
+				lab.BackgroundTransparency = 1
+				lab.Font = Enum.Font.Gotham
+				lab.Text = "关  " .. info.label
+				lab.TextColor3 = C.text
+				lab.TextSize = 12
+				lab.TextXAlignment = Enum.TextXAlignment.Left
+				lab.TextTruncate = Enum.TextTruncate.AtEnd
+				lab.Position = UDim2.fromOffset(8, 0)
+				lab.Size = UDim2.new(1, -118, 1, 0)
+				lab.Parent = row
+				local meta = Instance.new("TextLabel")
+				meta.Name = "MetaLab"
+				meta.BackgroundTransparency = 1
+				meta.Font = Enum.Font.Gotham
+				meta.Text = ""
+				meta.TextColor3 = C.dim
+				meta.TextSize = 12
+				meta.TextXAlignment = Enum.TextXAlignment.Right
+				meta.Position = UDim2.new(1, -110, 0, 0)
+				meta.Size = UDim2.fromOffset(102, 28)
+				meta.Parent = row
+				Flow.sellChecks[info.id] = row
+				local itemId = info.id
+				row.MouseButton1Click:Connect(function()
+					state.sellSel[itemId] = not state.sellSel[itemId]
+					Flow.refreshSellList()
+				end)
+			end
+		end
+	end
+	sortBtn.MouseButton1Click:Connect(function()
+		state.sellDesc = not state.sellDesc
+		sortBtn.Text = state.sellDesc and "排序 高→低" or "排序 低→高"
+		Flow.refreshSellList()
+	end)
+	ownedBtn.MouseButton1Click:Connect(function()
+		state.sellOwned = not state.sellOwned
+		ownedBtn.Text = state.sellOwned and "只看身上" or "显示全部"
+		Flow.refreshSellList()
+	end)
+	sellAll.MouseButton1Click:Connect(function()
+		local kind = state.openSell
+		if not kind then
+			return
+		end
+		for _, info in ipairs(Flow.sellItems) do
+			if info.kind == kind then
+				local qty = Flow.sellQty(info)
+				if (not state.sellOwned) or qty > 0 then
+					state.sellSel[info.id] = true
+				end
+			end
+		end
+		Flow.refreshSellList()
+	end)
+	sellNone.MouseButton1Click:Connect(function()
+		state.sellSel = {}
+		Flow.refreshSellList()
+	end)
+	Flow.refreshSellList()
+
 	local otherHint = Instance.new("TextLabel")
 	otherHint.BackgroundTransparency = 1
 	otherHint.Font = Enum.Font.Gotham
-	otherHint.Text = "保存矿石、怪物、药水选择和窗口大小。版本 " .. FORGE_VERSION
+	otherHint.Text = "保存矿石、怪物、药水、出售选择和窗口大小。版本 " .. FORGE_VERSION
 	otherHint.TextColor3 = C.dim
 	otherHint.TextSize = 11
 	otherHint.TextXAlignment = Enum.TextXAlignment.Left
@@ -2600,7 +3213,7 @@ local function bindUi()
 			Flow.stopHold()
 			Flow.target = nil
 			Flow.arriveAt = 0
-			if not (state.huntOn or state.potOn) then
+			if not (state.huntOn or state.potOn or state.sellOn) then
 				Flow.setFlyBody(false)
 				state.status = "待机"
 			end
@@ -2625,7 +3238,17 @@ local function bindUi()
 		paintOn(potBtn, state.potOn, "自动喝药")
 		if not state.potOn then
 			Flow.buyName = nil
-			if not (state.mineOn or state.huntOn) then
+			if not (state.mineOn or state.huntOn or state.sellOn) then
+				state.status = "待机"
+			end
+		end
+	end)
+	sellBtn.MouseButton1Click:Connect(function()
+		state.sellOn = not state.sellOn
+		paintOn(sellBtn, state.sellOn, "自动出售")
+		if not state.sellOn then
+			Flow.sellFly = nil
+			if not (state.mineOn or state.huntOn or state.potOn) then
 				state.status = "待机"
 			end
 		end
@@ -2671,7 +3294,9 @@ local function bindUi()
 		state.atkOn = false
 		state.huntOn = false
 		state.potOn = false
+		state.sellOn = false
 		Flow.buyName = nil
+		Flow.sellFly = nil
 		Flow.huntTarget = nil
 		pcall(function()
 			Flow.stopHold()
@@ -2728,6 +3353,12 @@ local function bindUi()
 				end
 				if potPage.Visible then
 					pcall(Flow.refreshPotChecks)
+				end
+				if sellPage.Visible then
+					pcall(Flow.refreshSellList)
+				end
+				if state.sellOn then
+					extra = extra .. "  卖"
 				end
 				statusLab.Text = (state.status or "待机") .. extra
 			end
