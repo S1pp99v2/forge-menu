@@ -1,6 +1,6 @@
 --!nocheck
 --!nolint
-local FORGE_VERSION = "1.1.0"
+local FORGE_VERSION = "1.1.1"
 print("[Forge] boot " .. FORGE_VERSION)
 
 local function grab(name)
@@ -136,6 +136,7 @@ local C = {
 
 local state = {
 	mineOn = false,
+	atkOn = false,
 	huntOn = false,
 	potOn = false,
 	uiOn = true,
@@ -207,6 +208,9 @@ function Flow.applyCfg(cfg)
 	end
 	if tonumber(cfg.standPitch) then
 		state.standPitch = math.clamp(tonumber(cfg.standPitch), -90, 90)
+	end
+	if cfg.atkOn == true then
+		state.atkOn = true
 	end
 	if tonumber(cfg.huntHeight) then
 		state.huntHeight = math.clamp(tonumber(cfg.huntHeight), 8, 28)
@@ -303,6 +307,7 @@ function Flow.dumpCfg()
 		flySpeed = state.flySpeed,
 		standDist = state.standDist,
 		standPitch = state.standPitch,
+		atkOn = state.atkOn == true,
 		huntHeight = state.huntHeight,
 		huntSingle = state.huntSingle == true,
 		selected = sel,
@@ -739,7 +744,7 @@ local function bindFarm()
 		if not rf then
 			return false
 		end
-		if state.huntOn or not state.mineOn then
+		if not state.mineOn then
 			local tool = Flow.getWeapon()
 			local hum = Flow.hum()
 			if tool and hum and tool.Parent ~= player.Character then
@@ -1670,7 +1675,8 @@ local function bindFarm()
 
 	task.spawn(function()
 		while stillMine() do
-			if state.huntOn and Flow.aliveHunt(Flow.huntTarget) and Flow.atHuntStand(Flow.huntTarget) and not Flow.swingBusy then
+			local huntSwing = state.huntOn and Flow.aliveHunt(Flow.huntTarget) and Flow.atHuntStand(Flow.huntTarget)
+			if (state.atkOn or huntSwing) and not Flow.swingBusy then
 				Flow.swingBusy = true
 				task.spawn(function()
 					pcall(Flow.swingWeapon)
@@ -2107,10 +2113,23 @@ local function bindUi()
 	end
 
 	local mineBtn = mkBtn(scroll, "自动挖矿", 1)
+	local atkBtn = mkBtn(scroll, "打怪", 2)
+	paintOn(atkBtn, state.atkOn, "打怪")
+	local atkHint = Instance.new("TextLabel")
+	atkHint.BackgroundTransparency = 1
+	atkHint.Font = Enum.Font.Gotham
+	atkHint.Text = "被动防御：没怪也挥刀。挖矿时不换镐，和打怪页的自动寻怪无关。"
+	atkHint.TextColor3 = C.dim
+	atkHint.TextSize = 11
+	atkHint.TextXAlignment = Enum.TextXAlignment.Left
+	atkHint.TextWrapped = true
+	atkHint.Size = UDim2.new(1, 0, 0, 18)
+	atkHint.LayoutOrder = 3
+	atkHint.Parent = scroll
 	local nums = Instance.new("Frame")
 	nums.BackgroundTransparency = 1
 	nums.Size = UDim2.new(1, 0, 0, 40)
-	nums.LayoutOrder = 2
+	nums.LayoutOrder = 4
 	nums.Parent = scroll
 	local speedRow = mkRow(nums, "飞行速度", tostring(state.flySpeed), 1, UDim2.new(0.32, 0, 1, 0))
 	local distRow = mkRow(nums, "站位距离", tostring(state.standDist), 2, UDim2.new(0.32, 0, 1, 0))
@@ -2524,6 +2543,10 @@ local function bindUi()
 			end
 		end
 	end)
+	atkBtn.MouseButton1Click:Connect(function()
+		state.atkOn = not state.atkOn
+		paintOn(atkBtn, state.atkOn, "打怪")
+	end)
 	huntBtn.MouseButton1Click:Connect(function()
 		state.huntOn = not state.huntOn
 		paintOn(huntBtn, state.huntOn, "自动打怪")
@@ -2582,6 +2605,7 @@ local function bindUi()
 		alive = false
 		env._ForgeFarmGen = (tonumber(env._ForgeFarmGen) or myGen) + 1
 		state.mineOn = false
+		state.atkOn = false
 		state.huntOn = false
 		state.potOn = false
 		Flow.buyName = nil
