@@ -1,6 +1,6 @@
 --!nocheck
 --!nolint
-local FORGE_VERSION = "1.1.7"
+local FORGE_VERSION = "1.1.8"
 print("[Forge] boot " .. FORGE_VERSION)
 
 local function grab(name)
@@ -186,6 +186,7 @@ local Flow = {
 	buyName = nil,
 	sellFly = nil,
 	sellTalk = false,
+	nextSellAt = 0,
 	lastDrink = {},
 	lastSell = 0,
 	sellItems = {},
@@ -1557,30 +1558,44 @@ local function bindFarm()
 		return gui and gui.Enabled == true
 	end
 
+	function Flow.farmOn()
+		return state.mineOn or state.huntOn
+	end
+
+	function Flow.armSellClock()
+		if state.sellOn and Flow.farmOn() and not Flow.sellFly then
+			if not Flow.nextSellAt or Flow.nextSellAt <= 0 then
+				Flow.nextSellAt = os.clock() + 60
+			end
+		end
+	end
+
+	function Flow.clearSellTrip()
+		Flow.sellFly = nil
+		Flow.sellTalk = false
+	end
+
 	function Flow.doSell(basket)
 		if type(basket) ~= "table" or next(basket) == nil then
 			return false
 		end
-		local snap = Flow.snapBasket(basket)
-		if Flow.hasSellAnywhere() then
-			pcall(function()
-				local knit = require(ReplicatedStorage.Shared.Packages.Knit)
-				knit.GetService("InventoryService"):SellAnywhere(basket):await()
-			end)
-			task.wait(0.25)
-			if Flow.soldSince(snap, basket) then
-				return true
-			end
-		end
 		if not Flow.nearSeller() then
 			return false
 		end
+		local snap = Flow.snapBasket(basket)
 		Flow.sellTalk = true
 		pcall(function()
 			Flow.setFlyBody(false)
 		end)
 		pcall(function()
 			Flow.openSellConfirm(basket)
+			local gui = playerGui:FindFirstChild("DialogueUI")
+			local prompt = gui and gui:FindFirstChild("PromptFrame")
+			if prompt and prompt:IsA("GuiButton") then
+				pcall(function()
+					prompt:Activate()
+				end)
+			end
 			local t0 = os.clock()
 			local clicked = false
 			repeat
@@ -1588,7 +1603,7 @@ local function bindFarm()
 				if Flow.clickSellDeal() then
 					clicked = true
 				end
-			until clicked or Flow.soldSince(snap, basket) or os.clock() - t0 > 6
+			until clicked or Flow.soldSince(snap, basket) or os.clock() - t0 > 7
 			if not Flow.soldSince(snap, basket) then
 				local knit = require(ReplicatedStorage.Shared.Packages.Knit)
 				local ui = knit.GetController("UIController")
@@ -1606,38 +1621,64 @@ local function bindFarm()
 
 	function Flow.tickSell()
 		if not state.sellOn then
-			Flow.sellFly = nil
-			Flow.sellTalk = false
+			Flow.clearSellTrip()
+			Flow.nextSellAt = 0
+			return
+		end
+		if not Flow.farmOn() then
+			Flow.clearSellTrip()
+			Flow.nextSellAt = 0
 			return
 		end
 		if Flow.sellTalk then
 			return
 		end
-		if os.clock() - (Flow.lastSell or 0) < 2 then
+		if Flow.sellFly then
+			local basket = Flow.makeSellBasket()
+			if next(basket) == nil then
+				Flow.clearSellTrip()
+				Flow.nextSellAt = os.clock() + 60
+				return
+			end
+			if not Flow.sellerPos() then
+				state.status = "这图不能卖"
+				return
+			end
+			if Flow.nearSeller() then
+				if Flow.doSell(basket) then
+					Flow.clearSellTrip()
+					Flow.lastSell = os.clock()
+					Flow.nextSellAt = os.clock() + 60
+					state.status = "已出售"
+					return
+				end
+				state.status = "出售确认"
+				return
+			end
+			state.status = "去商人"
+			return
+		end
+		Flow.armSellClock()
+		local due = Flow.nextSellAt or 0
+		if due > os.clock() then
+			return
+		end
+		if not Flow.hasAnySellSel() then
+			Flow.nextSellAt = os.clock() + 60
 			return
 		end
 		local basket = Flow.makeSellBasket()
 		if next(basket) == nil then
-			Flow.sellFly = nil
-			if Flow.hasAnySellSel() then
-				state.status = "没得卖"
-			else
-				state.status = "先勾要卖的"
-			end
+			Flow.nextSellAt = os.clock() + 60
 			return
 		end
-		if Flow.doSell(basket) then
-			Flow.sellFly = nil
-			Flow.lastSell = os.clock()
-			state.status = "已出售"
+		if not Flow.sellerPos() then
+			state.status = "这图不能卖"
+			Flow.nextSellAt = os.clock() + 15
 			return
 		end
-		if Flow.sellerPos() then
-			Flow.sellFly = true
-			state.status = "去商人"
-			return
-		end
-		state.status = "这图不能卖"
+		Flow.sellFly = true
+		state.status = "去商人"
 	end
 
 	function Flow.needPotion(id)
@@ -1954,14 +1995,14 @@ local function bindFarm()
 		if Flow.sellTalk then
 			return nil
 		end
-		if Flow.buyName and Flow.shopPos(Flow.buyName) then
-			local pos = Flow.shopPos(Flow.buyName)
-			return CFrame.new(pos + Vector3.new(0, 5, 0)), pos, "buy"
-		end
 		if Flow.sellFly and Flow.sellerStandCF() then
 			local dest = Flow.sellerStandCF()
 			local look = Flow.sellerPos()
 			return dest, look or dest.Position, "sell"
+		end
+		if Flow.buyName and Flow.shopPos(Flow.buyName) then
+			local pos = Flow.shopPos(Flow.buyName)
+			return CFrame.new(pos + Vector3.new(0, 5, 0)), pos, "buy"
 		end
 		if state.huntOn and Flow.aliveHunt(Flow.huntTarget) then
 			local dest = Flow.huntStandCF(Flow.huntTarget)
@@ -2164,6 +2205,9 @@ local function bindFarm()
 	end
 
 	function Flow.tickPot()
+		if Flow.sellFly or Flow.sellTalk then
+			return
+		end
 		if not state.potOn then
 			Flow.buyName = nil
 			return
@@ -3413,7 +3457,7 @@ local function bindUi()
 	local sellHint = Instance.new("TextLabel")
 	sellHint.BackgroundTransparency = 1
 	sellHint.Font = Enum.Font.Gotham
-	sellHint.Text = "先勾要卖的再开自动出售。没有随地卖时会飞去商人点确认。收藏的不卖。"
+	sellHint.Text = "勾好要卖的。挖矿或打怪时每1分钟飞去商人卖一次，收藏的不卖。"
 	sellHint.TextColor3 = C.dim
 	sellHint.TextSize = 11
 	sellHint.TextXAlignment = Enum.TextXAlignment.Left
@@ -3616,6 +3660,8 @@ local function bindUi()
 				Flow.setFlyBody(false)
 				state.status = "待机"
 			end
+		else
+			Flow.armSellClock()
 		end
 	end)
 	atkBtn.MouseButton1Click:Connect(function()
@@ -3630,6 +3676,8 @@ local function bindUi()
 			if not (state.mineOn or state.potOn) then
 				state.status = "待机"
 			end
+		else
+			Flow.armSellClock()
 		end
 	end)
 	potBtn.MouseButton1Click:Connect(function()
@@ -3646,13 +3694,15 @@ local function bindUi()
 		state.sellOn = not state.sellOn
 		paintOn(sellBtn, state.sellOn, "自动出售")
 		if not state.sellOn then
-			Flow.sellFly = nil
-			Flow.sellTalk = false
+			Flow.clearSellTrip()
+			Flow.nextSellAt = 0
 			if not (state.mineOn or state.huntOn or state.potOn) then
 				state.status = "待机"
 			end
 		elseif not Flow.hasAnySellSel() then
 			state.status = "先勾要卖的"
+		else
+			Flow.armSellClock()
 		end
 	end)
 	saveBtn.MouseButton1Click:Connect(function()
@@ -3699,6 +3749,8 @@ local function bindUi()
 		state.sellOn = false
 		Flow.buyName = nil
 		Flow.sellFly = nil
+		Flow.sellTalk = false
+		Flow.nextSellAt = 0
 		Flow.huntTarget = nil
 		pcall(function()
 			Flow.stopHold()
@@ -3760,7 +3812,13 @@ local function bindUi()
 					pcall(Flow.refreshSellList)
 				end
 				if state.sellOn then
-					extra = extra .. "  卖"
+					if Flow.sellFly or Flow.sellTalk then
+						extra = extra .. "  卖"
+					elseif Flow.farmOn() and Flow.nextSellAt and Flow.nextSellAt > 0 then
+						extra = extra .. "  卖" .. tostring(math.max(0, math.ceil(Flow.nextSellAt - os.clock()))) .. "s"
+					else
+						extra = extra .. "  卖"
+					end
 				end
 				statusLab.Text = (state.status or "待机") .. extra
 			end
