@@ -1,6 +1,6 @@
 --!nocheck
 --!nolint
-local FORGE_VERSION = "1.1.5"
+local FORGE_VERSION = "1.1.6"
 print("[Forge] boot " .. FORGE_VERSION)
 
 local function grab(name)
@@ -703,74 +703,154 @@ function Flow.potInfo(id)
 end
 
 Flow.zhSell = {
-	Stone = "石头",
-	["Sand Stone"] = "砂岩",
-	Copper = "铜",
-	Tin = "锡",
-	Iron = "铁",
-	Silver = "银",
-	Gold = "金",
-	Platinum = "铂",
-	Cobalt = "钴",
-	Titanium = "钛",
-	Tungsten = "钨",
-	Obsidian = "黑曜石",
-	Quartz = "石英",
+	["Aether Lotus"] = "以太莲",
+	Aetherit = "以太矿",
+	Aite = "艾特矿",
 	Amethyst = "紫晶",
-	Emerald = "绿宝石",
-	Ruby = "红宝石",
-	Sapphire = "蓝宝石",
-	Diamond = "钻石",
-	Topaz = "黄玉",
-	Onyx = "缟玛瑙",
-	Uranium = "铀",
-	Mythril = "秘银",
-	Sulfur = "硫磺",
-	Graphite = "石墨",
-	Pumice = "浮石",
-	Grass = "草",
-	Bamboo = "竹子",
-	["Volcanic Rock"] = "火山岩",
-	["Water Stone"] = "水石",
-	["Moon Stone"] = "月石",
-	["Sun Stone"] = "日石",
-	["Blue Crystal"] = "蓝水晶",
-	["Green Crystal"] = "绿水晶",
-	["Orange Crystal"] = "橙水晶",
-	["Magenta Crystal"] = "品红水晶",
-	["Crimson Crystal"] = "绯红水晶",
-	["Rainbow Crystal"] = "彩虹水晶",
-	["Arcane Crystal"] = "奥术水晶",
-	["Eye Ore"] = "眼矿",
-	["Evil Eye"] = "邪眼",
-	["Rock Seed"] = "石种",
-	["Heart Of The Island"] = "岛之心",
-	["Golem Heart"] = "魔像之心",
-	["Yeti Heart"] = "雪人心",
-	["Stolen Heart"] = "失心",
-	["Prismatic Heart"] = "棱镜之心",
-	["Tiger's Eye"] = "虎眼石",
-	["Lapis Lazuli"] = "青金石",
-	["Frost Fossil"] = "霜化石",
-	["North Star"] = "北极星",
-	["Star Dust"] = "星尘",
+	Ancienite = "古矿",
 	["Anti Matter"] = "反物质",
-	Matter = "物质",
-	["Lucky Cat"] = "招财猫",
-	["Oni Mask"] = "鬼面",
-	["Heat Steel"] = "热钢",
-	["Heavenly Orb"] = "天球",
-	["Supermassive Black Hole"] = "超大黑洞",
-	["Root Spire"] = "根塔",
-	["Tide Carve"] = "潮刻",
+	Aqujade = "水玉",
+	["Arcane Crystal"] = "奥术水晶",
+	["Aurelia-no-Ki"] = "金木",
+	Azuryxite = "苍穹矿",
+	Bamboo = "竹子",
+	Bananite = "香蕉矿",
+	["Blue Crystal"] = "蓝水晶",
 	["Blue Gem Quill"] = "蓝宝石羽",
-	["Sealed Curse"] = "封咒",
-	["Dark Boneite"] = "暗骨矿",
-	["Fierce Jade"] = "猛玉",
+	Boneite = "骨矿",
+	Cardboardite = "纸板矿",
+	Ceyite = "赛伊矿",
+	Cobalt = "钴",
+	Coinite = "硬币矿",
+	Copper = "铜",
+	["Crimson Crystal"] = "绯红水晶",
+	Crimsonite = "绯红矿",
+	Cryptex = "密匣矿",
+	Cuprite = "赤铜矿",
 	["Cyanite Jade"] = "青玉",
-	Yin = "阴",
+	["Dark Boneite"] = "暗骨矿",
+	Darkryte = "暗晶矿",
+	Demonite = "恶魔矿",
+	Diamond = "钻石",
+	Dorabell = "朵拉铃",
+	Duquack = "鸭矿",
+	Duranite = "杜兰矿",
+	Earthite = "地矿",
+	Emerald = "绿宝石",
+	Etherealite = "空灵矿",
+	["Evil Eye"] = "邪眼",
+	["Eye Ore"] = "眼矿",
+	Fichillium = "菲奇矿",
+	Fichilliumorite = "菲奇晶矿",
+	["Fierce Jade"] = "猛玉",
+	Fireite = "火矿",
+	Frogite = "蛙矿",
+	["Frost Fossil"] = "霜化石",
+	Fruite = "果矿",
+	Galaxite = "星系矿",
+	Galestor = "星狱矿",
+	Gargantuan = "巨兽矿",
+	Gold = "金",
+	["Golem Heart"] = "魔像之心",
+	Graphite = "石墨",
+	Grass = "草",
+	["Green Crystal"] = "绿水晶",
+	Gulabite = "古拉矿",
+	["Heart Of The Island"] = "岛之心",
+	["Heat Steel"] = "热钢",
+	Heavenite = "天堂矿",
+	["Heavenly Orb"] = "天球",
+	Iceite = "冰矿",
+	Iron = "铁",
+	Kitsunite = "狐矿",
+	Kokorite = "心矿",
+	Kyomutite = "虚矿",
+	Kyubite = "九尾矿",
+	["Lapis Lazuli"] = "青金石",
+	Larimar = "拉利玛",
+	Lgarite = "艾尔加矿",
+	Lightite = "光矿",
+	["Lucky Cat"] = "招财猫",
+	["Magenta Crystal"] = "品红水晶",
+	Magit = "魔力矿",
+	Magmaite = "岩浆矿",
+	Malachite = "孔雀石",
+	Marblite = "大理石矿",
+	Matter = "物质",
+	Melonite = "梅洛矿",
+	Meteorite = "陨石",
+	Mistvein = "雾脉",
+	Moltenfrost = "熔霜",
+	["Moon Stone"] = "月石",
+	Mosasaursit = "沧龙矿",
+	Mushroomite = "蘑菇矿",
+	Mythril = "秘银",
+	Neurotite = "神经矿",
+	["North Star"] = "北极星",
+	Obsidian = "黑曜石",
+	["Oni Mask"] = "鬼面",
+	Onite = "鬼矿",
+	Onyx = "缟玛瑙",
+	["Orange Crystal"] = "橙水晶",
+	Platinum = "铂",
+	Poopite = "粪矿",
+	["Prismatic Heart"] = "棱镜之心",
+	Pumice = "浮石",
+	Quartz = "石英",
+	["Rainbow Crystal"] = "彩虹水晶",
+	Rivalite = "对决矿",
+	["Rock Seed"] = "石种",
+	Roosite = "袋鼠矿",
+	["Root Spire"] = "根塔",
+	Ruby = "红宝石",
+	Ryuseki = "龙石",
+	Sakuranite = "樱矿",
+	Sakurite = "樱花矿",
+	Sanctis = "圣域矿",
+	["Sand Stone"] = "砂岩",
+	Sapphire = "蓝宝石",
+	Scheelite = "白钨矿",
+	["Sealed Curse"] = "封咒",
+	Seedheart = "种心",
+	Sentira = "感知矿",
+	Shikanite = "鹿矿",
+	Silver = "银",
+	Singularity = "奇点",
+	Slimite = "史莱姆矿",
+	Snowite = "雪矿",
+	["Star Dust"] = "星尘",
+	Starite = "星矿",
+	["Stolen Heart"] = "失心",
+	Stone = "石头",
+	Sulfur = "硫磺",
+	["Sun Stone"] = "日石",
+	["Supermassive Black Hole"] = "超大黑洞",
+	Suryafal = "日陨矿",
+	Takenokoishi = "笋石",
+	Takiseki = "瀑石",
+	["Tide Carve"] = "潮刻",
+	["Tiger's Eye"] = "虎眼石",
+	Tin = "锡",
+	Titanium = "钛",
+	Topaz = "黄玉",
+	Tungsten = "钨",
+	Uranium = "铀",
+	Vanegos = "瓦内矿",
+	Velchire = "魔翼矿",
+	Viridite = "翠绿矿",
+	Voidfractal = "虚空分形",
+	Voidstar = "虚空星",
+	["Volcanic Rock"] = "火山岩",
+	Vooite = "巫毒矿",
+	["Water Stone"] = "水石",
+	Wolfarite = "狼矿",
+	Wraith = "怨灵矿",
 	Yang = "阳",
+	["Yeti Heart"] = "雪人心",
+	Yin = "阴",
 	["Yin-Yang"] = "阴阳",
+	Zenstone = "禅石",
+	Zephyte = "西风矿",
 	["Tiny Essence"] = "微精华",
 	["Small Essence"] = "小精华",
 	["Medium Essence"] = "中精华",
@@ -780,6 +860,16 @@ Flow.zhSell = {
 	["Epic Essence"] = "史诗精华",
 	["Legendary Essence"] = "传奇精华",
 	["Mythical Essence"] = "神话精华",
+	["Developer Sigil"] = "开发印记",
+	["Blast Chip"] = "爆破碎片",
+	["Chill Dust"] = "寒霜粉",
+	["Chill Dust II"] = "寒霜粉 II",
+	["Flame Spark"] = "火花",
+	["Flame Spark II"] = "火花 II",
+	["Miner Shard"] = "矿工碎片",
+	["Miner Shard II"] = "矿工碎片 II",
+	["Thunder Shard"] = "雷霆碎片",
+	["Ward Patch"] = "守护补丁",
 }
 
 function Flow.sellLabel(name)
@@ -790,23 +880,49 @@ function Flow.buildSellCatalog()
 	Flow.sellItems = {}
 	local seen = {}
 	local function add(id, kind, sort, extra, icon)
-		if type(id) ~= "string" or id == "" or seen[kind .. ":" .. id] then
+		if type(id) ~= "string" or id == "" then
 			return
 		end
-		seen[kind .. ":" .. id] = true
-		table.insert(Flow.sellItems, {
+		local key = kind .. ":" .. id
+		local item = seen[key]
+		if item then
+			item.sort = tonumber(sort) or item.sort
+			item.label = extra or Flow.sellLabel(id)
+			if type(icon) == "string" then
+				item.icon = icon
+			end
+			return
+		end
+		item = {
 			id = id,
 			kind = kind,
 			sort = tonumber(sort) or 0,
 			label = extra or Flow.sellLabel(id),
 			icon = type(icon) == "string" and icon or nil,
-		})
+		}
+		seen[key] = item
+		table.insert(Flow.sellItems, item)
 	end
 	local ok, Ore = pcall(require, ReplicatedStorage.Shared.Data.Ore)
 	if ok and type(Ore) == "table" then
 		for _, v in ipairs(Ore) do
 			if type(v) == "table" and type(v.Name) == "string" then
-				add(v.Name, "ore", v.PriceMultiplier or v.Multiplier, nil, v.Slot and v.Slot.Icon)
+				add(v.Name, "ore", v.Multiplier, nil, v.Slot and v.Slot.Icon)
+			end
+		end
+		if type(_G.OreKeyData) == "table" then
+			for _, info in ipairs(Flow.sellItems) do
+				if info.kind == "ore" then
+					local key = _G.OreKeyData[info.id]
+					local ore = key and Ore[key.Index]
+					if type(ore) == "table" then
+						info.sort = tonumber(ore.Multiplier) or info.sort
+						info.label = Flow.sellLabel(info.id)
+						if ore.Slot and type(ore.Slot.Icon) == "string" then
+							info.icon = ore.Slot.Icon
+						end
+					end
+				end
 			end
 		end
 	end
@@ -1995,7 +2111,7 @@ local function bindFarm()
 					end
 					if meta then
 						if info.kind == "ore" then
-							meta.Text = string.format("%.2fx   x%d", info.sort, qty)
+							meta.Text = tostring(info.sort) .. "x   x" .. tostring(qty)
 						elseif info.kind == "mat" then
 							meta.Text = string.format("%g金   x%d", info.sort, qty)
 						else
