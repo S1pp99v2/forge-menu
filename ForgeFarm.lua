@@ -1,6 +1,6 @@
 --!nocheck
 --!nolint
-local FORGE_VERSION = "1.1.6"
+local FORGE_VERSION = "1.1.7"
 print("[Forge] boot " .. FORGE_VERSION)
 
 local function grab(name)
@@ -185,6 +185,7 @@ local Flow = {
 	huntTarget = nil,
 	buyName = nil,
 	sellFly = nil,
+	sellTalk = false,
 	lastDrink = {},
 	lastSell = 0,
 	sellItems = {},
@@ -1374,14 +1375,31 @@ local function bindFarm()
 		return basket
 	end
 
-	function Flow.sellerPos()
+	function Flow.sellerNpc()
 		local prox = workspace:FindFirstChild("Proximity")
-		local npc = prox and prox:FindFirstChild("Greedy Cey")
+		return prox and prox:FindFirstChild("Greedy Cey") or nil
+	end
+
+	function Flow.sellerPos()
+		local npc = Flow.sellerNpc()
 		if not npc then
 			return nil
 		end
-		local part = npc.PrimaryPart or npc:FindFirstChildWhichIsA("BasePart", true)
+		local part = npc:FindFirstChild("HumanoidRootPart") or npc.PrimaryPart or npc:FindFirstChildWhichIsA("BasePart", true)
 		return part and part.Position or nil
+	end
+
+	function Flow.sellerStandCF()
+		local npc = Flow.sellerNpc()
+		if not npc then
+			return nil
+		end
+		local hrp = npc:FindFirstChild("HumanoidRootPart")
+		if hrp and hrp:IsA("BasePart") then
+			return hrp.CFrame * CFrame.new(0, 0, -10)
+		end
+		local pos = Flow.sellerPos()
+		return pos and CFrame.new(pos + Vector3.new(0, 3, 8)) or nil
 	end
 
 	function Flow.nearSeller()
@@ -1390,65 +1408,228 @@ local function bindFarm()
 		if not (pos and hrp) then
 			return false
 		end
-		return (hrp.Position - pos).Magnitude <= 14
+		return (hrp.Position - pos).Magnitude <= 18
+	end
+
+	function Flow.hasSellAnywhere()
+		local data = Flow.replicaData()
+		return data and data.Gamepasses and data.Gamepasses.SellAnywhere == true
+	end
+
+	function Flow.qtyForBasketKey(key)
+		local data = Flow.replicaData()
+		if not (data and data.Inventory and type(key) == "string") then
+			return 0
+		end
+		local n = tonumber(data.Inventory[key])
+		if n then
+			return n
+		end
+		local misc = data.Inventory.Misc
+		if type(misc) ~= "table" then
+			return 0
+		end
+		local q = 0
+		for _, item in pairs(misc) do
+			if type(item) == "table" then
+				if item.GUID == key then
+					q = q + 1
+				elseif item.Name == key then
+					q = q + (tonumber(item.Quantity) or 1)
+				end
+			end
+		end
+		return q
+	end
+
+	function Flow.snapBasket(basket)
+		local data = Flow.replicaData()
+		local snap = { gold = data and tonumber(data.Gold) or 0 }
+		for id in pairs(basket) do
+			snap[id] = Flow.qtyForBasketKey(id)
+		end
+		return snap
+	end
+
+	function Flow.soldSince(snap, basket)
+		if not (snap and basket) then
+			return false
+		end
+		for id in pairs(basket) do
+			if Flow.qtyForBasketKey(id) < (snap[id] or 0) then
+				return true
+			end
+		end
+		return false
+	end
+
+	function Flow.hasAnySellSel()
+		for _, on in pairs(state.sellSel) do
+			if on then
+				return true
+			end
+		end
+		return false
+	end
+
+	function Flow.clickSellDeal()
+		local gui = playerGui:FindFirstChild("DialogueUI")
+		if not (gui and gui.Enabled) then
+			return false
+		end
+		local bill = gui:FindFirstChild("ResponseBillboard")
+		local list = bill and bill:FindFirstChild("List")
+		if not list then
+			return false
+		end
+		for _, fr in ipairs(list:GetChildren()) do
+			local btn = fr:FindFirstChild("Button")
+			local order = fr:FindFirstChild("Order")
+			local text = btn and tostring(btn.Text) or ""
+			local yes = string.find(text, "Deal", 1, true) or (order and order.Text == "1.")
+			if btn and btn:IsA("GuiButton") and yes then
+				pcall(function()
+					if type(getconnections) == "function" then
+						for _, conn in ipairs(getconnections(btn.MouseButton1Click)) do
+							if conn.Fire then
+								conn:Fire()
+							end
+						end
+					end
+				end)
+				pcall(function()
+					btn:Activate()
+				end)
+				return true
+			end
+		end
+		return false
+	end
+
+	function Flow.openSellConfirm(basket)
+		local ok, knit = pcall(require, ReplicatedStorage.Shared.Packages.Knit)
+		if not (ok and knit) then
+			return false
+		end
+		local ui = knit.GetController("UIController")
+		if ui and ui.Modules and ui.Modules.MiscSell then
+			ui.Modules.MiscSell.SellInfo = ui.Modules.MiscSell.SellInfo or {}
+			ui.Modules.MiscSell.SellInfo.Basket = basket
+		end
+		local npc = Flow.sellerNpc()
+		local gui = playerGui:FindFirstChild("DialogueUI")
+		if gui and gui.Enabled then
+			local speaker = gui:FindFirstChild("Speaker", true)
+			if speaker and speaker.Text == "Greedy Cey" then
+				return true
+			end
+			pcall(function()
+				gui.Enabled = false
+			end)
+			task.wait(0.15)
+		end
+		local prox = knit.GetService("ProximityService")
+		if prox and npc then
+			pcall(function()
+				prox:ForceDialogue(npc, "SellConfirmMisc"):await()
+			end)
+		end
+		gui = playerGui:FindFirstChild("DialogueUI")
+		if gui and gui.Enabled then
+			return true
+		end
+		local tree = ReplicatedStorage:FindFirstChild("Dialogues")
+		tree = tree and tree:FindFirstChild("MiscSell")
+		tree = tree and tree:FindFirstChild("SellConfirmMisc")
+		local bind = ReplicatedStorage:FindFirstChild("DialogueBindable", true)
+		if tree and bind and npc then
+			local part = npc:FindFirstChild("HumanoidRootPart")
+			pcall(function()
+				bind:Fire(tree, {
+					Speaker = "Greedy Cey",
+					SpeakerCharacter = npc,
+					Range = 40,
+					Position = part and part.Position or npc:GetPivot().Position,
+				})
+			end)
+		end
+		gui = playerGui:FindFirstChild("DialogueUI")
+		return gui and gui.Enabled == true
 	end
 
 	function Flow.doSell(basket)
 		if type(basket) ~= "table" or next(basket) == nil then
 			return false
 		end
-		local ok, inv = pcall(function()
-			return require(ReplicatedStorage.Shared.Packages.Knit).GetService("InventoryService")
-		end)
-		if ok and inv then
-			local ok2 = pcall(function()
-				inv:SellAnywhere(basket):await()
+		local snap = Flow.snapBasket(basket)
+		if Flow.hasSellAnywhere() then
+			pcall(function()
+				local knit = require(ReplicatedStorage.Shared.Packages.Knit)
+				knit.GetService("InventoryService"):SellAnywhere(basket):await()
 			end)
-			if ok2 then
+			task.wait(0.25)
+			if Flow.soldSince(snap, basket) then
 				return true
 			end
 		end
-		local ok3, rf = pcall(function()
-			return ReplicatedStorage.Shared.Packages.Knit.Services.InventoryService.RF.SellAnywhere
-		end)
-		if ok3 and rf then
-			return pcall(function()
-				rf:InvokeServer(basket)
-			end)
+		if not Flow.nearSeller() then
+			return false
 		end
-		if Flow.nearSeller() then
-			local ok4 = pcall(function()
+		Flow.sellTalk = true
+		pcall(function()
+			Flow.setFlyBody(false)
+		end)
+		pcall(function()
+			Flow.openSellConfirm(basket)
+			local t0 = os.clock()
+			local clicked = false
+			repeat
+				task.wait(0.12)
+				if Flow.clickSellDeal() then
+					clicked = true
+				end
+			until clicked or Flow.soldSince(snap, basket) or os.clock() - t0 > 6
+			if not Flow.soldSince(snap, basket) then
 				local knit = require(ReplicatedStorage.Shared.Packages.Knit)
-				local ds = knit.GetService("DialogueService")
 				local ui = knit.GetController("UIController")
 				if ui and ui.Modules and ui.Modules.MiscSell then
 					ui.Modules.MiscSell.SellInfo = ui.Modules.MiscSell.SellInfo or {}
 					ui.Modules.MiscSell.SellInfo.Basket = basket
 				end
-				ds:RunCommand("SellConfirm", { Basket = basket })
-			end)
-			return ok4
-		end
-		return false
+				knit.GetService("DialogueService"):RunCommand("SellConfirm", { Basket = basket }):await()
+				task.wait(0.35)
+			end
+		end)
+		Flow.sellTalk = false
+		return Flow.soldSince(snap, basket)
 	end
 
 	function Flow.tickSell()
 		if not state.sellOn then
 			Flow.sellFly = nil
+			Flow.sellTalk = false
 			return
 		end
-		if os.clock() - (Flow.lastSell or 0) < 1.6 then
+		if Flow.sellTalk then
+			return
+		end
+		if os.clock() - (Flow.lastSell or 0) < 2 then
 			return
 		end
 		local basket = Flow.makeSellBasket()
 		if next(basket) == nil then
 			Flow.sellFly = nil
+			if Flow.hasAnySellSel() then
+				state.status = "没得卖"
+			else
+				state.status = "先勾要卖的"
+			end
 			return
 		end
 		if Flow.doSell(basket) then
 			Flow.sellFly = nil
 			Flow.lastSell = os.clock()
-			state.status = "出售中"
+			state.status = "已出售"
 			return
 		end
 		if Flow.sellerPos() then
@@ -1770,13 +1951,17 @@ local function bindFarm()
 	end
 
 	function Flow.flyJob()
+		if Flow.sellTalk then
+			return nil
+		end
 		if Flow.buyName and Flow.shopPos(Flow.buyName) then
 			local pos = Flow.shopPos(Flow.buyName)
 			return CFrame.new(pos + Vector3.new(0, 5, 0)), pos, "buy"
 		end
-		if Flow.sellFly and Flow.sellerPos() then
-			local pos = Flow.sellerPos()
-			return CFrame.new(pos + Vector3.new(0, 5, 0)), pos, "sell"
+		if Flow.sellFly and Flow.sellerStandCF() then
+			local dest = Flow.sellerStandCF()
+			local look = Flow.sellerPos()
+			return dest, look or dest.Position, "sell"
 		end
 		if state.huntOn and Flow.aliveHunt(Flow.huntTarget) then
 			local dest = Flow.huntStandCF(Flow.huntTarget)
@@ -1796,6 +1981,10 @@ local function bindFarm()
 	end
 
 	function Flow.applyFly(dt)
+		if Flow.sellTalk then
+			Flow.setFlyBody(false)
+			return
+		end
 		local dest, look = Flow.flyJob()
 		if not dest then
 			Flow.setFlyBody(false)
@@ -2164,6 +2353,9 @@ local function bindFarm()
 	end
 
 	function Flow.applyFreeCam()
+		if Flow.sellTalk then
+			return
+		end
 		if not (state.mineOn or state.huntOn or Flow.buyName or Flow.sellFly) then
 			Flow.restoreCamOcclusion()
 			return
@@ -3221,7 +3413,7 @@ local function bindUi()
 	local sellHint = Instance.new("TextLabel")
 	sellHint.BackgroundTransparency = 1
 	sellHint.Font = Enum.Font.Gotham
-	sellHint.Text = "按分类列出可卖物品。矿石显示倍率。选中且身上有就卖掉，收藏的不卖。"
+	sellHint.Text = "先勾要卖的再开自动出售。没有随地卖时会飞去商人点确认。收藏的不卖。"
 	sellHint.TextColor3 = C.dim
 	sellHint.TextSize = 11
 	sellHint.TextXAlignment = Enum.TextXAlignment.Left
@@ -3455,9 +3647,12 @@ local function bindUi()
 		paintOn(sellBtn, state.sellOn, "自动出售")
 		if not state.sellOn then
 			Flow.sellFly = nil
+			Flow.sellTalk = false
 			if not (state.mineOn or state.huntOn or state.potOn) then
 				state.status = "待机"
 			end
+		elseif not Flow.hasAnySellSel() then
+			state.status = "先勾要卖的"
 		end
 	end)
 	saveBtn.MouseButton1Click:Connect(function()
