@@ -1,6 +1,6 @@
 --!nocheck
 --!nolint
-local FORGE_VERSION = "1.1.2"
+local FORGE_VERSION = "1.1.3"
 print("[Forge] boot " .. FORGE_VERSION)
 
 local function grab(name)
@@ -938,15 +938,83 @@ local function bindFarm()
 		return part and part.Position or nil
 	end
 
+	function Flow.potionTool(id)
+		local char = player.Character
+		if char then
+			local t = char:FindFirstChild(id)
+			if t and t:IsA("Tool") then
+				return t
+			end
+		end
+		local pack = player:FindFirstChild("Backpack")
+		if pack then
+			local t = pack:FindFirstChild(id)
+			if t and t:IsA("Tool") then
+				return t
+			end
+		end
+		return nil
+	end
+
+	function Flow.restoreMainTool()
+		local hum = Flow.hum()
+		if not hum then
+			return
+		end
+		local tool
+		if state.huntOn and not state.mineOn then
+			tool = Flow.getWeapon()
+		else
+			tool = Flow.getPickaxe()
+		end
+		if tool and tool.Parent ~= player.Character then
+			pcall(function()
+				hum:EquipTool(tool)
+			end)
+		end
+	end
+
 	function Flow.drinkPotion(id)
-		local rf = Flow.equipRF()
-		if not rf then
+		local tool = Flow.potionTool(id)
+		if not tool then
+			local rf = Flow.equipRF()
+			if not rf then
+				return false
+			end
+			pcall(function()
+				rf:InvokeServer(id)
+			end)
+			local t0 = os.clock()
+			repeat
+				task.wait(0.05)
+				tool = Flow.potionTool(id)
+			until tool or os.clock() - t0 > 0.9
+		end
+		if not tool then
 			return false
 		end
+		local hum = Flow.hum()
+		if hum and tool.Parent ~= player.Character then
+			pcall(function()
+				hum:EquipTool(tool)
+			end)
+			task.wait(0.1)
+		end
 		local ok = pcall(function()
-			rf:InvokeServer(id)
+			local rf = Flow.toolRF()
+			if rf then
+				rf:InvokeServer(id)
+			end
 		end)
+		local held = player.Character and player.Character:FindFirstChild(id)
+		if held then
+			pcall(function()
+				held:Activate()
+			end)
+		end
 		Flow.lastDrink[id] = os.clock()
+		task.wait(0.15)
+		Flow.restoreMainTool()
 		return ok
 	end
 
@@ -970,7 +1038,7 @@ local function bindFarm()
 			return "buy"
 		end
 		local last = Flow.lastDrink[id] or 0
-		if os.clock() - last < 1.4 then
+		if os.clock() - last < 2.2 then
 			return nil
 		end
 		local rem = Flow.potionRemain(id)
@@ -1490,35 +1558,29 @@ local function bindFarm()
 				end
 				if need == "buy" then
 					local pos = Flow.shopPos(info.id)
-					if not pos then
-						state.status = "这图不能买 " .. Flow.potLabel(info.id)
+					local canBuy = pos and (info.price <= 0 or Flow.gold() >= info.price)
+					if canBuy then
+						Flow.buyName = info.id
+						local hrp = Flow.hrp()
+						if hrp and (hrp.Position - pos).Magnitude > 9 then
+							state.status = "去买 " .. Flow.potLabel(info.id)
+							return
+						end
+						local amt = math.max(1, math.min(info.maxBuy > 0 and info.maxBuy or 3, 3))
+						state.status = "购买 " .. Flow.potLabel(info.id)
+						Flow.buyPotion(info.id, amt)
+						task.wait(0.35)
+						Flow.buyName = nil
 						return
 					end
-					if info.price > 0 and Flow.gold() < info.price then
-						state.status = "金币不够买 " .. Flow.potLabel(info.id)
-						return
-					end
-					Flow.buyName = info.id
-					local hrp = Flow.hrp()
-					if hrp and (hrp.Position - pos).Magnitude > 9 then
-						state.status = "去买 " .. Flow.potLabel(info.id)
-						return
-					end
-					local amt = math.max(1, math.min(info.maxBuy > 0 and info.maxBuy or 3, 3))
-					state.status = "购买 " .. Flow.potLabel(info.id)
-					Flow.buyPotion(info.id, amt)
-					task.wait(0.35)
-					Flow.buyName = nil
-					return
 				end
 			end
 		end
+		Flow.buyName = nil
 		if not picked then
-			state.status = state.status
 			if not (state.mineOn or state.huntOn) then
 				state.status = "先选药水"
 			end
-			Flow.buyName = nil
 		end
 	end
 
@@ -2119,7 +2181,7 @@ local function bindUi()
 	local atkHint = Instance.new("TextLabel")
 	atkHint.BackgroundTransparency = 1
 	atkHint.Font = Enum.Font.Gotham
-	atkHint.Text = "被动防御：没怪也挥刀。挖矿时不换镐，和打怪页的自动寻怪无关。"
+	atkHint.Text = "和自动挖矿绑在一起：边挖边挥刀，不换镐。没开挖矿不会挥。"
 	atkHint.TextColor3 = C.dim
 	atkHint.TextSize = 11
 	atkHint.TextXAlignment = Enum.TextXAlignment.Left
@@ -2441,7 +2503,7 @@ local function bindUi()
 	local potHint = Instance.new("TextLabel")
 	potHint.BackgroundTransparency = 1
 	potHint.Font = Enum.Font.Gotham
-	potHint.Text = "选中的药水会自动喝。喝完飞去本岛商店买，买完继续喝。"
+	potHint.Text = "选中的药水会自动喝。生命药水只在血量低于 82% 时喝。喝完飞去本岛商店买。"
 	potHint.TextColor3 = C.dim
 	potHint.TextSize = 11
 	potHint.TextXAlignment = Enum.TextXAlignment.Left
