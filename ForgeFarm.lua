@@ -352,12 +352,28 @@ function Flow.httpGet(url)
 end
 
 function Flow.reloadRemote()
-	local url = env._ForgeScriptUrl
-	if type(url) ~= "string" or url == "" then
+	local urls = {}
+	if type(env._ForgeScriptUrls) == "table" then
+		for _, u in ipairs(env._ForgeScriptUrls) do
+			urls[#urls + 1] = u
+		end
+	end
+	if type(env._ForgeScriptUrl) == "string" and env._ForgeScriptUrl ~= "" then
+		urls[#urls + 1] = env._ForgeScriptUrl
+	end
+	if #urls == 0 then
 		return false, "本地脚本，没有远程地址"
 	end
-	local body = Flow.httpGet(url)
-	if type(body) ~= "string" or #body < 80 or not string.find(body, "ForgeFarm") then
+	local body = nil
+	for _, url in ipairs(urls) do
+		body = Flow.httpGet(url)
+		if type(body) == "string" and #body > 80 and string.find(body, "ForgeFarm") then
+			env._ForgeScriptUrl = url
+			break
+		end
+		body = nil
+	end
+	if type(body) ~= "string" then
 		return false, "下载失败"
 	end
 	if type(writefileFn) == "function" then
