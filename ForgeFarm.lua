@@ -1,6 +1,6 @@
 --!nocheck
 --!nolint
-local FORGE_VERSION = "1.1.22"
+local FORGE_VERSION = "1.1.23"
 print("[Forge] boot " .. FORGE_VERSION)
 
 local function grab(name)
@@ -1656,16 +1656,45 @@ function Flow.bestRockForOre(ore)
 	return fallback, fallbackP
 end
 
-function Flow.objDone(prog)
+function Flow.numVal(v)
+	if type(v) == "number" then
+		return v
+	end
+	if type(v) == "string" then
+		return tonumber(v)
+	end
+	local n = tonumber(v)
+	if n then
+		return n
+	end
+	if type(v) == "table" then
+		return Flow.numVal(v.Value or v.value or v[1])
+	end
+	local ok, x = pcall(function()
+		return v.Value
+	end)
+	if ok then
+		return Flow.numVal(x)
+	end
+	return nil
+end
+
+function Flow.objDone(prog, id, idx)
+	if type(Flow.hudObjDone) == "function" and id and idx and Flow.hudObjDone(id, idx) then
+		return true
+	end
 	if type(prog) ~= "table" then
 		return false
 	end
-	local cur = tonumber(prog.currentProgress or prog.CurrentProgress) or 0
-	local need = tonumber(prog.requiredAmount or prog.RequiredAmount)
-	if not need then
-		return cur > 0
+	local cur = Flow.numVal(prog.currentProgress) or Flow.numVal(prog.CurrentProgress) or 0
+	local need = Flow.numVal(prog.requiredAmount) or Flow.numVal(prog.RequiredAmount)
+	if cur > 0 then
+		if not need then
+			return true
+		end
+		return cur >= need
 	end
-	return cur >= need
+	return false
 end
 
 function Flow.miningNow()
@@ -2469,18 +2498,30 @@ local function bindFarm()
 	end
 
 	function Flow.replicaData()
-		if Flow._rep and Flow._rep.Data then
-			return Flow._rep.Data
-		end
 		local ok, knit = pcall(require, ReplicatedStorage.Shared.Packages.Knit)
 		if ok and knit then
 			local ok2, pc = pcall(function()
 				return knit.GetController("PlayerController")
 			end)
-			if ok2 and pc and pc.Replica then
+			if ok2 and pc and pc.Replica and pc.Replica.Data then
 				Flow._rep = pc.Replica
 				return pc.Replica.Data
 			end
+		end
+		if Flow._rep and Flow._rep.Data then
+			return Flow._rep.Data
+		end
+		return nil
+	end
+
+	function Flow.liveQuest(id)
+		if type(id) ~= "string" then
+			return nil
+		end
+		local data = Flow.replicaData()
+		local q = data and data.Quests and data.Quests[id]
+		if type(q) == "table" then
+			return q
 		end
 		return nil
 	end
@@ -3741,6 +3782,15 @@ local function bindFarm()
 			end
 			return
 		end
+		if state.questOn and Flow.questJob and Flow.questJob.kind == "mine" then
+			local idx = Flow.firstOpenObj(Flow.questJob.questId)
+			if idx ~= Flow.questJob.objIndex then
+				Flow.stopHold()
+				Flow.target = nil
+				Flow.arriveAt = 0
+				return
+			end
+		end
 		if not Flow.hasAnySelected() then
 			Flow.stopHold()
 			Flow.target = nil
@@ -3798,6 +3848,13 @@ local function bindFarm()
 		if not Flow.huntingNow() then
 			Flow.huntTarget = nil
 			return
+		end
+		if state.questOn and Flow.questJob and Flow.questJob.kind == "hunt" then
+			local idx = Flow.firstOpenObj(Flow.questJob.questId)
+			if idx ~= Flow.questJob.objIndex then
+				Flow.huntTarget = nil
+				return
+			end
 		end
 		if Flow.buyName or Flow.sellFly then
 			return
@@ -3878,6 +3935,7 @@ local function bindFarm()
 		local out = {}
 		local seen = {}
 		local function add(id, live)
+			live = Flow.liveQuest(id) or live
 			if seen[id] or not Flow.isListedLive(id, live) then
 				return
 			end
@@ -3933,32 +3991,104 @@ local function bindFarm()
 
 	function Flow.progKeys(progress)
 		local keys = {}
+		local seen = {}
 		if type(progress) ~= "table" then
 			return keys
 		end
-		for k in pairs(progress) do
+		local function add(k)
 			local n = tonumber(k)
-			if n then
+			if n and not seen[n] then
+				seen[n] = true
 				keys[#keys + 1] = n
 			end
 		end
+		pcall(function()
+			for k in pairs(progress) do
+				add(k)
+			end
+		end)
+		pcall(function()
+			for i in progress do
+				add(i)
+			end
+		end)
 		table.sort(keys)
 		return keys
 	end
 
+	function Flow.questHudList()
+		local list
+		pcall(function()
+			local knit = require(ReplicatedStorage.Shared.Packages.Knit)
+			local ui = knit.GetController("UIController")
+			list = ui and ui.Main and ui.Main.Screen and ui.Main.Screen.Quests and ui.Main.Screen.Quests.List
+		end)
+		if not list then
+			pcall(function()
+				local quests = playerGui:FindFirstChild("Quests", true)
+				list = quests and quests:FindFirstChild("List")
+			end)
+		end
+		return list
+	end
+
+	function Flow.hudObjDone(id, idx)
+		if type(id) ~= "string" or not idx then
+			return false
+		end
+		local list = Flow.questHudList()
+		if not list then
+			return false
+		end
+		local pack = list:FindFirstChild(id .. "List")
+		if not pack then
+			return false
+		end
+		local row = pack:FindFirstChild(tostring(idx))
+		if not row then
+			return false
+		end
+		local check = row:FindFirstChild("Check", true)
+		if check and check.Visible then
+			return true
+		end
+		local label = row:FindFirstChild("TextLabel", true)
+		local text = label and label.Text
+		if type(text) == "string" and (string.find(text, "<s>", 1, true) or string.find(text, "</s>", 1, true)) then
+			return true
+		end
+		return false
+	end
+
+	function Flow.progAt(progress, i)
+		if type(progress) ~= "table" or not i then
+			return nil
+		end
+		return progress[i] or progress[tostring(i)]
+	end
+
 	function Flow.firstOpenObj(id, live)
+		live = Flow.liveQuest(id) or live
 		local book = Flow.questBook()[id]
 		local objs = book and book.Objectives
 		local progress = live and live.Progress
-		if type(progress) ~= "table" then
+		local n = 0
+		if type(objs) == "table" then
+			n = math.max(n, #objs)
+			for k in pairs(objs) do
+				n = math.max(n, tonumber(k) or 0)
+			end
+		end
+		for _, i in ipairs(Flow.progKeys(progress)) do
+			n = math.max(n, i)
+		end
+		if n < 1 then
 			return nil
 		end
-		local keys = Flow.progKeys(progress)
-		for _, i in ipairs(keys) do
-			local prev = progress[i - 1]
-			if i > 1 and prev and not Flow.objDone(prev) then
-			elseif not Flow.objDone(progress[i]) then
-				return i, progress[i], objs and objs[i]
+		for i = 1, n do
+			local prog = Flow.progAt(progress, i)
+			if not Flow.objDone(prog, id, i) then
+				return i, prog, objs and objs[i]
 			end
 		end
 		return nil
@@ -4065,6 +4195,7 @@ local function bindFarm()
 	end
 
 	function Flow.buildQuestJob(id, live)
+		live = Flow.liveQuest(id) or live
 		local idx, prog, def = Flow.firstOpenObj(id, live)
 		if not idx then
 			return nil
@@ -4228,7 +4359,7 @@ local function bindFarm()
 		local stuck
 		local stuckScore
 		for _, e in ipairs(Flow.listedQuests()) do
-			local job = Flow.buildQuestJob(e.id, e.live)
+			local job = Flow.buildQuestJob(e.id, Flow.liveQuest(e.id) or e.live)
 			if job then
 				local score = Flow.questPriority(e.id)
 				if Flow.jobDoableHere(job) then
@@ -4811,7 +4942,7 @@ local function bindFarm()
 				if not ok then
 					state.status = tostring(err)
 				end
-				task.wait(0.4)
+				task.wait(0.2)
 			else
 				Flow.questJob = nil
 				task.wait(0.3)
@@ -5542,7 +5673,7 @@ local function bindUi()
 	local questHint = Instance.new("TextLabel")
 	questHint.BackgroundTransparency = 1
 	questHint.Font = Enum.Font.Gotham
-	questHint.Text = "只做任务栏里正在进行的。当前这条做不了（锻造、强化、不在这张图）就改做下一条能自动进行的。"
+	questHint.Text = "只做任务栏里正在进行的，按实时进度跳过已完成的子任务。做不了的改做下一条能自动进行的。"
 	questHint.TextColor3 = C.dim
 	questHint.TextSize = 11
 	questHint.TextXAlignment = Enum.TextXAlignment.Left
