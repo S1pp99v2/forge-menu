@@ -1,6 +1,6 @@
 --!nocheck
 --!nolint
-local FORGE_VERSION = "1.1.17"
+local FORGE_VERSION = "1.1.18"
 print("[Forge] boot " .. FORGE_VERSION)
 
 local function grab(name)
@@ -597,6 +597,48 @@ Flow.zhGear = {
 	["Cultist Dagger"] = "邪教匕",
 	["Executioner's Greataxe"] = "处刑巨斧",
 	Naginata = "薙刀",
+	["Boxing Gloves"] = "拳击手套",
+	["Comically Large Spoon"] = "超大勺",
+	Relevator = "裁决拳",
+	["Savage Claws"] = "蛮爪",
+	["Dark Knight's Gauntlets"] = "暗骑拳套",
+	["Anchored Greatsword"] = "锚定大剑",
+	Zweihander = "双手剑",
+	["Candy Cane"] = "拐杖糖",
+	["Shark's Fangs"] = "鲨牙匕",
+	["Curved Dagger"] = "弯匕",
+	Mace = "钉锤",
+	["Spiked Mace"] = "刺锤",
+	["Winged Mace"] = "翼锤",
+	["Hammerhead Mace"] = "锤头锤",
+	Axe = "斧",
+	Battleaxe = "战斧",
+	["Curved Handle Axe"] = "曲柄斧",
+	["Spade Armed Axe"] = "铲刃斧",
+	["Ornate Short Axe"] = "华饰短斧",
+	["Greater Battle Axe"] = "大战斧",
+	["Wyvern Axe"] = "飞龙斧",
+	["Anchored Straight Blade"] = "锚定直刃",
+	Spear = "矛",
+	Trident = "三叉戟",
+	["Knight Spear"] = "骑士矛",
+	["Compass Spear"] = "罗盘矛",
+	Excalibur = "王者之剑",
+	Jitte = "十手",
+	["Damascus Dagger"] = "大马士革匕",
+	Hachiwari = "钵割",
+	Tetsubo = "铁棒",
+	Kanabo = "金碎棒",
+	["Juto Katana"] = "柔刀",
+	["Washi-maru"] = "鷲丸",
+	["Sun Great Axe"] = "日轮巨斧",
+	["Reaper Scythe"] = "死神镰",
+	Shakujo = "锡杖",
+	Sodegarami = "袖搦",
+	["Bo Staff"] = "棒",
+	["Kinmon Kamagatana"] = "金门鎌刀",
+	Otsuchi = "大槌",
+	["Sharktooth Odachi"] = "鲨齿大太刀",
 	["Light Helmet"] = "轻盔",
 	["Light Chestplate"] = "轻胸甲",
 	["Light Leggings"] = "轻护腿",
@@ -718,6 +760,48 @@ Flow.gearClass = {
 	["Cultist Dagger"] = "Dagger",
 	["Executioner's Greataxe"] = "GreatAxe",
 	Naginata = "Spear",
+	["Boxing Gloves"] = "Gauntlet",
+	["Comically Large Spoon"] = "ColossalSword",
+	Relevator = "Gauntlet",
+	["Savage Claws"] = "Gauntlet",
+	["Dark Knight's Gauntlets"] = "Gauntlet",
+	["Anchored Greatsword"] = "GreatSword",
+	Zweihander = "GreatSword",
+	["Candy Cane"] = "StraightSword",
+	["Shark's Fangs"] = "Dagger",
+	["Curved Dagger"] = "Dagger",
+	Mace = "Mace",
+	["Spiked Mace"] = "Mace",
+	["Winged Mace"] = "Mace",
+	["Hammerhead Mace"] = "Mace",
+	Axe = "Axe",
+	Battleaxe = "Axe",
+	["Curved Handle Axe"] = "Axe",
+	["Spade Armed Axe"] = "Axe",
+	["Ornate Short Axe"] = "Axe",
+	["Greater Battle Axe"] = "GreatAxe",
+	["Wyvern Axe"] = "GreatAxe",
+	["Anchored Straight Blade"] = "GreatAxe",
+	Spear = "Spear",
+	Trident = "Spear",
+	["Knight Spear"] = "Spear",
+	["Compass Spear"] = "Spear",
+	Excalibur = "ColossalSword",
+	Jitte = "Dagger",
+	["Damascus Dagger"] = "Dagger",
+	Hachiwari = "StraightSword",
+	Tetsubo = "Mace",
+	Kanabo = "Mace",
+	["Juto Katana"] = "Katana",
+	["Washi-maru"] = "Katana",
+	["Sun Great Axe"] = "GreatAxe",
+	["Reaper Scythe"] = "GreatAxe",
+	Shakujo = "Spear",
+	Sodegarami = "Spear",
+	["Bo Staff"] = "Spear",
+	["Kinmon Kamagatana"] = "ColossalSword",
+	Otsuchi = "ColossalSword",
+	["Sharktooth Odachi"] = "ColossalSword",
 	["Light Helmet"] = "LightHelmet",
 	["Light Chestplate"] = "LightChestplate",
 	["Light Leggings"] = "LightLeggings",
@@ -1153,10 +1237,265 @@ function Flow.mixForOre(area, oreName, kind)
 		slot .. "：" .. label .. " " .. multTxt .. "，本区没有" .. slot .. "词条矿，整炉铺倍率。"
 end
 
+function Flow.mapOfArea(area)
+	for _, map in ipairs(Flow.guideMaps or {}) do
+		for _, a in ipairs(map.areas or {}) do
+			if a == area then
+				return map
+			end
+		end
+	end
+	return nil
+end
+
+function Flow.areaWeaponTypes(area)
+	if area.weaponTypes then
+		return area.weaponTypes
+	end
+	local map = Flow.mapOfArea(area)
+	return (map and map.weaponTypes) or {}
+end
+
+function Flow.zoneRoles(area, kind)
+	kind = kind or "weapon"
+	local traits = {}
+	local fillers = {}
+	local seen = {}
+	local function consider(name)
+		if seen[name] then
+			return
+		end
+		seen[name] = true
+		local info = Flow.oreInfo(name)
+		if info.skip or (info.mult or 0) <= 0 then
+			return
+		end
+		local has = kind == "armor" and info.armor or info.weapon
+		if has then
+			traits[#traits + 1] = name
+		end
+		fillers[#fillers + 1] = name
+	end
+	for _, name in ipairs(Flow.areaOreList(area)) do
+		consider(name)
+	end
+	local borrowed = false
+	if #traits == 0 then
+		for _, a in ipairs(Flow.mapAreasOf(area)) do
+			for _, name in ipairs(Flow.areaOreList(a)) do
+				local info = Flow.oreInfo(name)
+				local has = kind == "armor" and info.armor or info.weapon
+				if has and not info.skip and (info.mult or 0) > 0 and not seen[name] then
+					seen[name] = true
+					traits[#traits + 1] = name
+					borrowed = true
+				end
+			end
+		end
+	end
+	table.sort(traits, function(a, b)
+		local rank = kind == "armor" and Flow.armorRank or Flow.traitRank
+		local function score(name)
+			local info = Flow.oreInfo(name)
+			local n = (info.mult or 0) * 0.1
+			for _, tr in ipairs(info.traits or {}) do
+				if (kind == "armor" and tr.armor) or (kind ~= "armor" and tr.weapon) then
+					n = n + (rank[tr.id] or 1)
+				end
+			end
+			return n
+		end
+		return score(a) > score(b)
+	end)
+	table.sort(fillers, function(a, b)
+		local ia, ib = Flow.oreInfo(a), Flow.oreInfo(b)
+		local ha = kind == "armor" and ia.armor or ia.weapon
+		local hb = kind == "armor" and ib.armor or ib.weapon
+		if ha ~= hb then
+			return not ha
+		end
+		return (ia.mult or 0) > (ib.mult or 0)
+	end)
+	return traits, fillers, borrowed
+end
+
+function Flow.mixKey(mix)
+	local bits = {}
+	for _, part in ipairs(mix or {}) do
+		bits[#bits + 1] = tostring(part[1]) .. ":" .. tostring(part[2])
+	end
+	table.sort(bits)
+	return table.concat(bits, "|")
+end
+
+function Flow.zoneMixes(area, kind)
+	kind = kind or "weapon"
+	local traits, fillers, borrowed = Flow.zoneRoles(area, kind)
+	local mixes = {}
+	local seen = {}
+	local function add(mix, title)
+		if not (mix and #mix > 0) then
+			return
+		end
+		local key = Flow.mixKey(mix)
+		if seen[key] then
+			return
+		end
+		seen[key] = true
+		mixes[#mixes + 1] = {
+			mix = mix,
+			title = title,
+			borrowed = borrowed,
+		}
+	end
+	if #traits == 0 then
+		for i = 1, math.min(#fillers, 10) do
+			add({ { fillers[i], 10 } }, Flow.sellLabel(fillers[i]) .. " 纯铺")
+		end
+		for i = 1, math.min(#fillers, 6) do
+			for j = i + 1, math.min(#fillers, 8) do
+				add(
+					{ { fillers[i], 7 }, { fillers[j], 3 } },
+					Flow.sellLabel(fillers[i]) .. " 7 + " .. Flow.sellLabel(fillers[j]) .. " 3"
+				)
+			end
+		end
+		return mixes
+	end
+	local topFill = math.min(#fillers, 8)
+	local topTrait = math.min(#traits, 4)
+	for i = 1, topFill do
+		local filler = fillers[i]
+		for j = 1, topTrait do
+			local trait = traits[j]
+			if filler ~= trait then
+				add(
+					{ { filler, 7 }, { trait, 3 } },
+					Flow.sellLabel(filler)
+						.. " 铺倍率 + "
+						.. Flow.sellLabel(trait)
+						.. "（"
+						.. Flow.oreTraitText(trait, kind)
+						.. "）"
+				)
+			end
+		end
+	end
+	if #fillers > 0 then
+		local filler = fillers[1]
+		for j = topTrait + 1, #traits do
+			local trait = traits[j]
+			if filler ~= trait then
+				add(
+					{ { filler, 7 }, { trait, 3 } },
+					Flow.sellLabel(filler)
+						.. " 铺倍率 + "
+						.. Flow.sellLabel(trait)
+						.. "（"
+						.. Flow.oreTraitText(trait, kind)
+						.. "）"
+				)
+			end
+		end
+	end
+	if #traits > 0 then
+		local trait = traits[1]
+		for i = topFill + 1, #fillers do
+			local filler = fillers[i]
+			if filler ~= trait then
+				add(
+					{ { filler, 7 }, { trait, 3 } },
+					Flow.sellLabel(filler)
+						.. " 铺倍率 + "
+						.. Flow.sellLabel(trait)
+						.. "（"
+						.. Flow.oreTraitText(trait, kind)
+						.. "）"
+				)
+			end
+		end
+	end
+	if #traits >= 2 then
+		for i = 1, math.min(#fillers, 4) do
+			local filler = fillers[i]
+			local t1, t2 = traits[1], traits[2]
+			if filler ~= t1 and filler ~= t2 then
+				add(
+					{ { filler, 4 }, { t1, 3 }, { t2, 3 } },
+					Flow.sellLabel(filler) .. " + " .. Flow.sellLabel(t1) .. " + " .. Flow.sellLabel(t2)
+				)
+			end
+		end
+		if #traits >= 3 and fillers[1] then
+			local filler = fillers[1]
+			if filler ~= traits[1] and filler ~= traits[3] then
+				add(
+					{ { filler, 4 }, { traits[1], 3 }, { traits[3], 3 } },
+					Flow.sellLabel(filler) .. " + " .. Flow.sellLabel(traits[1]) .. " + " .. Flow.sellLabel(traits[3])
+				)
+			end
+			if filler ~= traits[2] and filler ~= traits[3] then
+				add(
+					{ { filler, 4 }, { traits[2], 3 }, { traits[3], 3 } },
+					Flow.sellLabel(filler) .. " + " .. Flow.sellLabel(traits[2]) .. " + " .. Flow.sellLabel(traits[3])
+				)
+			end
+		end
+	end
+	return mixes
+end
+
+function Flow.oreKindLabel(name)
+	local info = Flow.oreInfo(name)
+	if info.skip or (info.mult or 0) <= 0 then
+		return "勿锻"
+	end
+	if info.weapon and info.armor then
+		return "武器/护甲都行"
+	end
+	if info.weapon then
+		return "适合武器"
+	end
+	if info.armor then
+		return "适合护甲"
+	end
+	return "填料"
+end
+
+function Flow.splitAreaOres(area)
+	local wep, arm, fill, skip = {}, {}, {}, {}
+	for _, name in ipairs(Flow.areaOreList(area)) do
+		local info = Flow.oreInfo(name)
+		if info.skip or (info.mult or 0) <= 0 then
+			skip[#skip + 1] = name
+		else
+			if info.weapon then
+				wep[#wep + 1] = name
+			end
+			if info.armor then
+				arm[#arm + 1] = name
+			end
+			if not info.weapon and not info.armor then
+				fill[#fill + 1] = name
+			end
+		end
+	end
+	return wep, arm, fill, skip
+end
+
 Flow.guideMaps = {
 	{
 		id = 1,
 		title = "地图1 石醒十字",
+		weaponTypes = {
+			{ class = "Dagger", title = "匕首", items = { "Dagger", "Falchion Knife", "Gladius Dagger" } },
+			{ class = "StraightSword", title = "直剑", items = { "Gladius", "Falchion", "Cutlass" } },
+			{ class = "Gauntlet", title = "拳套", items = { "Ironhand", "Boxing Gloves" } },
+			{ class = "Katana", title = "太刀", items = { "Uchigatana" } },
+			{ class = "GreatSword", title = "大剑", items = { "Crusader Sword" } },
+			{ class = "GreatAxe", title = "巨斧", items = { "Double Battle Axe" } },
+			{ class = "ColossalSword", title = "巨剑", items = { "Great Sword", "Hammer", "Comically Large Spoon" } },
+		},
 		areas = {
 			{
 				stage = "early",
@@ -1208,6 +1547,15 @@ Flow.guideMaps = {
 	{
 		id = 2,
 		title = "地图2 遗忘王国",
+		weaponTypes = {
+			{ class = "Dagger", title = "匕首", items = { "Dagger", "Gladius Dagger", "Hook" } },
+			{ class = "StraightSword", title = "直剑", items = { "Falchion", "Cutlass", "Rapier", "Chaos" } },
+			{ class = "Gauntlet", title = "拳套", items = { "Ironhand", "Relevator", "Savage Claws", "Dark Knight's Gauntlets" } },
+			{ class = "Katana", title = "太刀", items = { "Uchigatana", "Tachi", "Straight Edge Katana" } },
+			{ class = "GreatSword", title = "大剑", items = { "Crusader Sword", "Long Sword", "Dark Knight's Greatsword", "Anchored Greatsword", "Zweihander" } },
+			{ class = "GreatAxe", title = "巨斧", items = { "Double Battle Axe", "Scythe" } },
+			{ class = "ColossalSword", title = "巨剑", items = { "Great Sword", "Hammer", "Skull Crusher", "Dragon Slayer" } },
+		},
 		areas = {
 			{
 				stage = "early",
@@ -1262,6 +1610,15 @@ Flow.guideMaps = {
 	{
 		id = 3,
 		title = "地图3 霜尖原野",
+		weaponTypes = {
+			{ class = "Dagger", title = "匕首", items = { "Dagger", "Gladius Dagger", "Hook", "Cultist Dagger", "Shark's Fangs", "Curved Dagger" } },
+			{ class = "StraightSword", title = "直剑", items = { "Falchion", "Cutlass", "Rapier", "Chaos", "Hell Slayer", "Crystalized Broadsword", "Hook Blade", "Candy Cane" } },
+			{ class = "Mace", title = "锤", items = { "Mace", "Spiked Mace", "Winged Mace", "Hammerhead Mace", "Grave Maker" } },
+			{ class = "Axe", title = "斧", items = { "Axe", "Battleaxe", "Curved Handle Axe", "Spade Armed Axe", "Ornate Short Axe" } },
+			{ class = "GreatAxe", title = "巨斧", items = { "Double Battle Axe", "Scythe", "Greater Battle Axe", "Wyvern Axe", "Executioner's Greataxe", "Anchored Straight Blade" } },
+			{ class = "Spear", title = "矛", items = { "Spear", "Trident", "Angelic Spear", "Knight Spear", "Compass Spear" } },
+			{ class = "ColossalSword", title = "巨剑", items = { "Great Sword", "Hammer", "Skull Crusher", "Dragon Slayer", "Colossal Terrorblade", "Colossal Gemblade", "Excalibur" } },
+		},
 		areas = {
 			{
 				stage = "early",
@@ -1319,6 +1676,15 @@ Flow.guideMaps = {
 	{
 		id = 4,
 		title = "地图4 绯红樱岛",
+		weaponTypes = {
+			{ class = "Dagger", title = "匕首", items = { "Kunai", "Jitte", "Damascus Dagger", "Tanto", "Cultist Dagger", "Shark's Fangs", "Curved Dagger" } },
+			{ class = "StraightSword", title = "直剑", items = { "Chokuto", "Hachiwari", "Dragon Blade", "Hell Slayer", "Crystalized Broadsword", "Hook Blade" } },
+			{ class = "Mace", title = "锤", items = { "Mace", "Tetsubo", "Kanabo" } },
+			{ class = "Katana", title = "太刀", items = { "Uchigatana", "Tachi", "Juto Katana", "Kurokiba-gatana", "Washi-maru" } },
+			{ class = "GreatAxe", title = "巨斧", items = { "Double Battle Axe", "Sun Great Axe", "Reaper Scythe", "Scythe", "Greater Battle Axe", "Wyvern Axe", "Executioner's Greataxe" } },
+			{ class = "Spear", title = "矛", items = { "Spear", "Shakujo", "Sodegarami", "Bo Staff", "Naginata" } },
+			{ class = "ColossalSword", title = "巨剑", items = { "Dragon Slayer", "Kinmon Kamagatana", "Otsuchi", "Sharktooth Odachi", "Colossal Terrorblade", "Colossal Gemblade", "Excalibur" } },
+		},
 		areas = {
 			{
 				stage = "early",
@@ -4892,88 +5258,168 @@ local function bindUi()
 		return false
 	end
 
-	local function clickWeapon(area, weaponName, mix)
-		mix = mix or area.mix
-		local cls = Flow.gearClass[weaponName] or "StraightSword"
+	local function craftIfUsed(area, mixes)
+		local function used(dest)
+			if not dest then
+				return false
+			end
+			for _, spec in ipairs(mixes or {}) do
+				if mixHasOre(spec.mix, dest) then
+					return true
+				end
+			end
+			return false
+		end
+		return area.craft and used(area.craft.dest) and area.craft or nil,
+			area.craft2 and used(area.craft2.dest) and area.craft2 or nil
+	end
+
+	local function clickWeaponType(area, wset)
+		local cls = wset.class or "StraightSword"
 		local lock = Flow.classLock[cls] or 9
 		local total = Flow.forgeTotal(lock)
-		local counts = Flow.mixCounts(mix, total)
-		local look = counts[1] and counts[1][1]
-		local clsName = Flow.classZh[cls] or cls
-		local body = table.concat({
-			"点的是 " .. Flow.gearLabel(weaponName) .. "，属于" .. clsName .. "。",
-			"游戏按颗数进炉。锁定" .. clsName .. "至少要 " .. tostring(lock) .. " 颗，这一套按 " .. tostring(total) .. " 颗扔。",
-			"配法：" .. Flow.mixLine(counts) .. "，一共 " .. tostring(total) .. " 颗。",
-			"词条矿至少要占三成才会满，所以带词条的那种不要少扔。",
-			area.note or "",
-		}, "\n")
+		local mixes = Flow.zoneMixes(area, "weapon")
+		local look
+		local gears = {}
+		for _, name in ipairs(wset.items or {}) do
+			look = look or name
+			gears[#gears + 1] = { name, look }
+		end
+		if mixes[1] and mixes[1].mix[1] then
+			look = mixes[1].mix[1][1]
+			for _, gear in ipairs(gears) do
+				gear[2] = look
+			end
+		end
+		local lines = {}
+		lines[#lines + 1] = {
+			text = "本区 "
+				.. tostring(#mixes)
+				.. " 套配法。锁定"
+				.. (Flow.classZh[cls] or cls)
+				.. "至少 "
+				.. tostring(lock)
+				.. " 颗，下面每套都按 "
+				.. tostring(total)
+				.. " 颗算。词条矿至少占三成。",
+			header = true,
+		}
+		for i, spec in ipairs(mixes) do
+			local counts = Flow.mixCounts(spec.mix, total)
+			lines[#lines + 1] = {
+				text = tostring(i) .. ". " .. spec.title .. (spec.borrowed and "（词条来自同图其它矿区）" or ""),
+				counts = counts,
+			}
+		end
+		local craft, craft2 = craftIfUsed(area, mixes)
 		openGuideDetail({
-			title = Flow.gearLabel(weaponName) .. " · " .. clsName,
-			body = body,
-			counts = counts,
+			title = (wset.title or Flow.classZh[cls] or cls) .. " · " .. tostring(#(wset.items or {})) .. " 把",
+			body = "点的是这一类武器，配法通用。成品样子在上面，往下翻是本区多套矿石搭配。",
 			lookOre = look,
-			gears = { { weaponName, look } },
-			craft = area.craft and mixHasOre(mix, area.craft.dest) and area.craft or nil,
-			craft2 = area.craft2 and mixHasOre(mix, area.craft2.dest) and area.craft2 or nil,
+			gears = gears,
+			lines = lines,
+			craft = craft,
+			craft2 = craft2,
 		})
 	end
 
 	local function clickOre(area, oreName)
-		local wepMix, wepWhy = Flow.mixForOre(area, oreName, "weapon")
-		local armMix, armWhy = Flow.mixForOre(area, oreName, "armor")
 		local info = Flow.oreInfo(oreName)
 		if info.skip or (info.mult or 0) <= 0 then
 			openGuideDetail({
 				title = Flow.sellLabel(oreName) .. " · 0x",
-				body = wepWhy,
+				body = "倍率是 0，别拿去锻。",
 				lookOre = oreName,
 			})
 			return
 		end
-		local function addGearLine(lines, mix, gearName)
-			local cls = Flow.gearClass[gearName] or "StraightSword"
-			local lock = Flow.classLock[cls] or 9
-			local total = Flow.forgeTotal(lock)
-			local counts = Flow.mixCounts(mix, total)
-			lines[#lines + 1] = {
-				text = Flow.gearLabel(gearName)
-					.. "（"
-					.. (Flow.classZh[cls] or cls)
-					.. "，锁定 "
-					.. tostring(lock)
-					.. " 颗）这一炉 "
-					.. tostring(total)
-					.. " 颗："
-					.. Flow.mixLine(counts),
-				counts = counts,
-				gear = gearName,
-			}
-			return counts
-		end
-		local lines = {}
-		local wepBase = Flow.mixCounts(wepMix, 10)
-		lines[#lines + 1] = {
-			text = "武器 · 基准 10 颗：" .. Flow.mixLine(wepBase),
-			header = true,
-			counts = wepBase,
-		}
-		for _, weaponName in ipairs(area.weapons or {}) do
-			addGearLine(lines, wepMix, weaponName)
-		end
-		local armBase = Flow.mixCounts(armMix, 10)
-		lines[#lines + 1] = {
-			text = "护甲 · 基准 10 颗：" .. Flow.mixLine(armBase) .. "。头、甲、腿要分开锻。",
-			header = true,
-			counts = armBase,
-		}
-		for _, set in ipairs(area.armorSets or {}) do
-			lines[#lines + 1] = { text = set.title or "护甲一套", header = true }
-			local bag = {}
-			for _, item in ipairs(set.items or {}) do
-				for _, part in ipairs(addGearLine(lines, armMix, item)) do
-					bag[part[1]] = (bag[part[1]] or 0) + part[2]
+		local function addKind(lines, kind, label)
+			local mixes = Flow.zoneMixes(area, kind)
+			local hit = {}
+			for _, spec in ipairs(mixes) do
+				if mixHasOre(spec.mix, oreName) then
+					hit[#hit + 1] = spec
 				end
 			end
+			lines[#lines + 1] = {
+				text = label .. " · 含 " .. Flow.sellLabel(oreName) .. " 的本区配法 " .. tostring(#hit) .. " 套",
+				header = true,
+			}
+			if #hit == 0 then
+				lines[#lines + 1] = {
+					text = "这套里没把它算进去，去点武器类型或护甲看全部配法。",
+					header = true,
+				}
+				return
+			end
+			for i, spec in ipairs(hit) do
+				lines[#lines + 1] = {
+					text = tostring(i) .. ". " .. spec.title,
+					counts = Flow.mixCounts(spec.mix, 10),
+				}
+			end
+		end
+		local lines = {}
+		addKind(lines, "weapon", "武器")
+		addKind(lines, "armor", "护甲")
+		openGuideDetail({
+			title = Flow.sellLabel(oreName)
+				.. " · "
+				.. string.format("%.2fx", info.mult or 0)
+				.. " · "
+				.. Flow.oreKindLabel(oreName),
+			body = (info.weapon and ("武器词条：" .. Flow.oreTraitText(oreName, "weapon") .. "。") or "没有武器词条。")
+				.. (info.armor and ("护甲词条：" .. Flow.oreTraitText(oreName, "armor") .. "。") or "没有护甲词条。")
+				.. "点武器类型或护甲能看到按锁定加过的颗数。",
+			lookOre = oreName,
+			lines = lines,
+		})
+	end
+
+	local function clickArmorSet(area, set)
+		local mixes = Flow.zoneMixes(area, "armor")
+		local look
+		local gears = {}
+		for _, item in ipairs(set.items or {}) do
+			look = look or item
+			gears[#gears + 1] = { item, look }
+		end
+		if mixes[1] and mixes[1].mix[1] then
+			look = mixes[1].mix[1][1]
+			for _, gear in ipairs(gears) do
+				gear[2] = look
+			end
+		end
+		local lines = {}
+		lines[#lines + 1] = {
+			text = "本区 "
+				.. tostring(#mixes)
+				.. " 套护甲配法。头、甲、腿要分开锻。下面每套先给基准 10 颗，再写三件各自要几颗。",
+			header = true,
+		}
+		for i, spec in ipairs(mixes) do
+			lines[#lines + 1] = {
+				text = tostring(i) .. ". " .. spec.title .. (spec.borrowed and "（词条来自同图其它矿区）" or ""),
+				header = true,
+				counts = Flow.mixCounts(spec.mix, 10),
+			}
+			local bag = {}
+			local bits = {}
+			for _, item in ipairs(set.items or {}) do
+				local cls = Flow.gearClass[item] or "HeavyChestplate"
+				local lock = Flow.classLock[cls] or 52
+				local total = Flow.forgeTotal(lock)
+				local counts = Flow.mixCounts(spec.mix, total)
+				for _, part in ipairs(counts) do
+					bag[part[1]] = (bag[part[1]] or 0) + part[2]
+				end
+				bits[#bits + 1] = Flow.gearLabel(item)
+					.. " "
+					.. tostring(total)
+					.. "颗："
+					.. Flow.mixLine(counts)
+			end
+			lines[#lines + 1] = { text = table.concat(bits, "  ·  "), header = true }
 			local sumBits = {}
 			local sum = 0
 			for name, qty in pairs(bag) do
@@ -4989,78 +5435,22 @@ local function bindUi()
 				counts = sumBits,
 			}
 		end
-		openGuideDetail({
-			title = Flow.sellLabel(oreName) .. " · " .. string.format("%.2fx", info.mult or 0),
-			body = wepWhy .. "\n" .. armWhy .. "\n下面按锁定加到对应总数。",
-			lookOre = oreName,
-			lines = lines,
-			craft = (area.craft and (mixHasOre(wepMix, area.craft.dest) or mixHasOre(armMix, area.craft.dest))) and area.craft
-				or nil,
-			craft2 = (area.craft2 and (mixHasOre(wepMix, area.craft2.dest) or mixHasOre(armMix, area.craft2.dest)))
-					and area.craft2
-				or nil,
-		})
-	end
-
-	local function clickArmorSet(area, set)
-		local mix = area.armorMix or area.mix
-		local lines = {}
-		local gears = {}
-		local bag = {}
-		local look
-		for _, item in ipairs(set.items or {}) do
-			local cls = Flow.gearClass[item] or "HeavyChestplate"
-			local lock = Flow.classLock[cls] or 52
-			local total = Flow.forgeTotal(lock)
-			local counts = Flow.mixCounts(mix, total)
-			look = look or (counts[1] and counts[1][1])
-			gears[#gears + 1] = { item, look }
-			for _, part in ipairs(counts) do
-				bag[part[1]] = (bag[part[1]] or 0) + part[2]
-			end
-			lines[#lines + 1] = {
-				text = Flow.gearLabel(item)
-					.. "（"
-					.. (Flow.classZh[cls] or cls)
-					.. "，锁定 "
-					.. tostring(lock)
-					.. " 颗）这一炉 "
-					.. tostring(total)
-					.. " 颗："
-					.. Flow.mixLine(counts),
-				counts = counts,
-				gear = item,
-			}
-		end
-		local sumBits = {}
-		local sum = 0
-		for name, qty in pairs(bag) do
-			sumBits[#sumBits + 1] = { name, qty }
-			sum = sum + qty
-		end
-		table.sort(sumBits, function(a, b)
-			return a[2] > b[2]
-		end)
-		local body = table.concat({
-			(set.title or "护甲一套") .. "要分开锻 3 次，头、甲、腿各进一炉。",
-			"三件合计 " .. tostring(sum) .. " 颗：" .. Flow.mixLine(sumBits) .. "。",
-			area.armorNote or area.note or "",
-		}, "\n")
+		local craft, craft2 = craftIfUsed(area, mixes)
 		openGuideDetail({
 			title = set.title or "护甲一套",
-			body = body,
+			body = "同一套头甲腿用同一种配法，只是锁定不同所以颗数不同。",
 			lookOre = look,
 			gears = gears,
 			lines = lines,
-			craft = area.craft and mixHasOre(mix, area.craft.dest) and area.craft or nil,
-			craft2 = area.craft2 and mixHasOre(mix, area.craft2.dest) and area.craft2 or nil,
+			craft = craft,
+			craft2 = craft2,
 		})
 	end
 
 	local guideHint = Instance.new("TextLabel")
 	guideHint.BackgroundTransparency = 1
 	guideHint.Font = Enum.Font.Gotham
-	guideHint.Text = "点本区任意一种矿石，看它配每把武器和每套护甲各要几颗。词条矿至少占三成才满。当前地图已展开。"
+	guideHint.Text = "矿石已分成适合武器、适合护甲、填料。点武器类型或护甲，看本区多套配法。词条矿至少占三成。当前地图已展开。"
 	guideHint.TextColor3 = C.dim
 	guideHint.TextSize = 11
 	guideHint.TextXAlignment = Enum.TextXAlignment.Left
@@ -5188,84 +5578,60 @@ local function bindUi()
 			mkGuideCell(rockRow, "Rock", rockName, Flow.rockLabel(rockName), i)
 		end
 
-		local oreLab = Instance.new("TextLabel")
-		oreLab.BackgroundTransparency = 1
-		oreLab.Font = Enum.Font.Gotham
-		oreLab.Text = "本区矿石（点一种看它配武器和护甲）"
-		oreLab.TextColor3 = C.dim
-		oreLab.TextSize = 11
-		oreLab.TextXAlignment = Enum.TextXAlignment.Left
-		oreLab.Size = UDim2.new(1, 0, 0, 14)
-		oreLab.LayoutOrder = 5
-		oreLab.Parent = card
-		local oreRow = Instance.new("Frame")
-		oreRow.BackgroundTransparency = 1
-		oreRow.AutomaticSize = Enum.AutomaticSize.Y
-		oreRow.Size = UDim2.new(1, 0, 0, 0)
-		oreRow.LayoutOrder = 6
-		oreRow.Parent = card
-		local oreLay = Instance.new("UIListLayout")
-		oreLay.FillDirection = Enum.FillDirection.Horizontal
-		oreLay.Wraps = true
-		oreLay.Padding = UDim.new(0, 6)
-		oreLay.SortOrder = Enum.SortOrder.LayoutOrder
-		oreLay.Parent = oreRow
-		for i, oreName in ipairs(Flow.areaOreList(area)) do
-			local info = Flow.oreInfo(oreName)
-			local tag = ""
-			if info.skip or (info.mult or 0) <= 0 then
-				tag = " 勿"
-			elseif info.weapon then
-				tag = " 词"
-			elseif info.armor then
-				tag = " 甲"
-			end
-			mkGuideCell(oreRow, "Ore", oreName, Flow.sellLabel(oreName) .. tag, i, oreName, function()
-				clickOre(area, oreName)
-			end)
+		local nextOrder = 4
+		local function addLabel(text)
+			nextOrder = nextOrder + 1
+			local lab = Instance.new("TextLabel")
+			lab.BackgroundTransparency = 1
+			lab.Font = Enum.Font.Gotham
+			lab.Text = text
+			lab.TextColor3 = C.dim
+			lab.TextSize = 11
+			lab.TextXAlignment = Enum.TextXAlignment.Left
+			lab.Size = UDim2.new(1, 0, 0, 14)
+			lab.LayoutOrder = nextOrder
+			lab.Parent = card
+			return lab
 		end
+		local function addWrapRow()
+			nextOrder = nextOrder + 1
+			local row = Instance.new("Frame")
+			row.BackgroundTransparency = 1
+			row.AutomaticSize = Enum.AutomaticSize.Y
+			row.Size = UDim2.new(1, 0, 0, 0)
+			row.LayoutOrder = nextOrder
+			row.Parent = card
+			local lay = Instance.new("UIListLayout")
+			lay.FillDirection = Enum.FillDirection.Horizontal
+			pcall(function()
+				lay.Wraps = true
+			end)
+			lay.Padding = UDim.new(0, 6)
+			lay.SortOrder = Enum.SortOrder.LayoutOrder
+			lay.Parent = row
+			return row
+		end
+		local wepOres, armOres, fillOres, skipOres = Flow.splitAreaOres(area)
+		local function addOreGroup(title, list)
+			if #list == 0 then
+				return
+			end
+			addLabel(title)
+			local row = addWrapRow()
+			for i, oreName in ipairs(list) do
+				mkGuideCell(row, "Ore", oreName, Flow.sellLabel(oreName), i, oreName, function()
+					clickOre(area, oreName)
+				end)
+			end
+		end
+		addOreGroup("适合武器（有进攻词条）", wepOres)
+		addOreGroup("适合护甲（有防御/机动词条）", armOres)
+		addOreGroup("填料（只吃倍率，要配词条矿）", fillOres)
+		addOreGroup("别拿去锻", skipOres)
 
 		local lookOre = area.mix and area.mix[1] and area.mix[1][1]
-		local wepLab = Instance.new("TextLabel")
-		wepLab.BackgroundTransparency = 1
-		wepLab.Font = Enum.Font.Gotham
-		wepLab.Text = "推荐套（点武器看推荐配法）"
-		wepLab.TextColor3 = C.dim
-		wepLab.TextSize = 11
-		wepLab.TextXAlignment = Enum.TextXAlignment.Left
-		wepLab.Size = UDim2.new(1, 0, 0, 14)
-		wepLab.LayoutOrder = 7
-		wepLab.Parent = card
-		local wepRow = Instance.new("Frame")
-		wepRow.BackgroundTransparency = 1
-		wepRow.AutomaticSize = Enum.AutomaticSize.Y
-		wepRow.Size = UDim2.new(1, 0, 0, 0)
-		wepRow.LayoutOrder = 8
-		wepRow.Parent = card
-		local wepLay = Instance.new("UIListLayout")
-		wepLay.FillDirection = Enum.FillDirection.Horizontal
-		wepLay.Wraps = true
-		wepLay.Padding = UDim.new(0, 6)
-		wepLay.SortOrder = Enum.SortOrder.LayoutOrder
-		wepLay.Parent = wepRow
-		for i, weaponName in ipairs(area.weapons or {}) do
-			mkGuideCell(wepRow, "Gear", weaponName, Flow.gearLabel(weaponName), i, lookOre, function()
-				clickWeapon(area, weaponName)
-			end)
-		end
-
-		local armLab = Instance.new("TextLabel")
-		armLab.BackgroundTransparency = 1
-		armLab.Font = Enum.Font.Gotham
-		armLab.Text = "护甲整套（点一套看头甲腿各要几颗）"
-		armLab.TextColor3 = C.dim
-		armLab.TextSize = 11
-		armLab.TextXAlignment = Enum.TextXAlignment.Left
-		armLab.Size = UDim2.new(1, 0, 0, 14)
-		armLab.LayoutOrder = 9
-		armLab.Parent = card
-
-		for si, set in ipairs(area.armorSets or {}) do
+		local function addSetCard(title, items, oreName, click)
+			nextOrder = nextOrder + 1
 			local setBtn = Instance.new("TextButton")
 			setBtn.BackgroundColor3 = C.off
 			setBtn.BorderSizePixel = 0
@@ -5273,7 +5639,7 @@ local function bindUi()
 			setBtn.AutoButtonColor = true
 			setBtn.AutomaticSize = Enum.AutomaticSize.Y
 			setBtn.Size = UDim2.new(1, 0, 0, 0)
-			setBtn.LayoutOrder = 10 + si
+			setBtn.LayoutOrder = nextOrder
 			setBtn.Parent = card
 			corner(setBtn, 6)
 			local setPad = Instance.new("UIPadding")
@@ -5289,7 +5655,7 @@ local function bindUi()
 			local setTitle = Instance.new("TextLabel")
 			setTitle.BackgroundTransparency = 1
 			setTitle.Font = Enum.Font.GothamBold
-			setTitle.Text = set.title or "护甲一套"
+			setTitle.Text = title
 			setTitle.TextColor3 = C.text
 			setTitle.TextSize = 12
 			setTitle.TextXAlignment = Enum.TextXAlignment.Left
@@ -5304,14 +5670,29 @@ local function bindUi()
 			setRow.Parent = setBtn
 			local setLay = Instance.new("UIListLayout")
 			setLay.FillDirection = Enum.FillDirection.Horizontal
+			pcall(function()
+				setLay.Wraps = true
+			end)
 			setLay.Padding = UDim.new(0, 6)
 			setLay.SortOrder = Enum.SortOrder.LayoutOrder
 			setLay.Parent = setRow
-			local armorLook = (area.armorMix and area.armorMix[1] and area.armorMix[1][1]) or lookOre
-			for pi, item in ipairs(set.items or {}) do
-				mkGuideCell(setRow, "Gear", item, Flow.gearLabel(item), pi, armorLook)
+			for pi, item in ipairs(items or {}) do
+				mkGuideCell(setRow, "Gear", item, Flow.gearLabel(item), pi, oreName)
 			end
-			setBtn.MouseButton1Click:Connect(function()
+			setBtn.MouseButton1Click:Connect(click)
+		end
+
+		addLabel("武器类型（点一类看本区多套配法）")
+		for _, wset in ipairs(Flow.areaWeaponTypes(area)) do
+			addSetCard(wset.title or wset.class, wset.items, lookOre, function()
+				clickWeaponType(area, wset)
+			end)
+		end
+
+		addLabel("护甲类型（点一套看本区多套配法）")
+		local armorLook = (area.armorMix and area.armorMix[1] and area.armorMix[1][1]) or lookOre
+		for _, set in ipairs(area.armorSets or {}) do
+			addSetCard(set.title or "护甲一套", set.items, armorLook, function()
 				clickArmorSet(area, set)
 			end)
 		end
