@@ -1,6 +1,6 @@
 --!nocheck
 --!nolint
-local FORGE_VERSION = "1.1.14"
+local FORGE_VERSION = "1.1.15"
 print("[Forge] boot " .. FORGE_VERSION)
 
 local function grab(name)
@@ -954,7 +954,7 @@ Flow.guideMaps = {
 				stageName = "中期",
 				area = "圣树",
 				rocks = { "Hana Pebble", "Glowy Rock", "Blossom Boulder" },
-				tip = "圣树出封咒、日石、招财猫、天球、陨石。点进去看每件要几颗。",
+				tip = "圣树出封咒、日石、招财猫、天球、陨石。点进去看每件要几颗。心矿是另一条合成线，主配方不用它。",
 				mix = { { "Sun Stone", 4 }, { "Sealed Curse", 3 }, { "Onyx", 3 } },
 				note = "日石 4 颗火，封咒 3 颗增伤（掉血掉速），缟玛瑙 3 颗暴击。",
 				armorMix = { { "Heavenly Orb", 4 }, { "Lucky Cat", 3 }, { "Duquack", 3 } },
@@ -963,12 +963,6 @@ Flow.guideMaps = {
 				armorSets = {
 					{ title = "武士中甲一套", items = { "Samurai Helmet", "Samurai Chestplate", "Samurai Leggings" } },
 					{ title = "将军重甲一套", items = { "Shogun's Helmet", "Shogun's Chestplate", "Shogun's Leggings" } },
-				},
-				craft = {
-					dest = "Kokorite",
-					parts = { { "Sealed Curse", 5 }, { "Roosite", 7 } },
-					gold = 4000,
-					station = "绯红樱岛锻造台",
 				},
 			},
 			{
@@ -4485,6 +4479,18 @@ local function bindUi()
 		task.defer(ensureGuideIcons)
 	end
 
+	local function mixHasOre(mix, name)
+		if not (mix and name) then
+			return false
+		end
+		for _, part in ipairs(mix) do
+			if part[1] == name then
+				return true
+			end
+		end
+		return false
+	end
+
 	local function clickWeapon(area, weaponName)
 		local cls = Flow.gearClass[weaponName] or "StraightSword"
 		local lock = Flow.classLock[cls] or 9
@@ -4505,8 +4511,8 @@ local function bindUi()
 			counts = counts,
 			lookOre = look,
 			gears = { { weaponName, look } },
-			craft = area.craft,
-			craft2 = area.craft2,
+			craft = area.craft and mixHasOre(area.mix, area.craft.dest) and area.craft or nil,
+			craft2 = area.craft2 and mixHasOre(area.mix, area.craft2.dest) and area.craft2 or nil,
 		})
 	end
 
@@ -4560,8 +4566,8 @@ local function bindUi()
 			lookOre = look,
 			gears = gears,
 			lines = lines,
-			craft = area.craft,
-			craft2 = area.craft2,
+			craft = area.craft and mixHasOre(mix, area.craft.dest) and area.craft or nil,
+			craft2 = area.craft2 and mixHasOre(mix, area.craft2.dest) and area.craft2 or nil,
 		})
 	end
 
