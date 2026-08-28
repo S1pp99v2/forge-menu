@@ -1,6 +1,6 @@
 --!nocheck
 --!nolint
-local FORGE_VERSION = "1.1.20"
+local FORGE_VERSION = "1.1.21"
 print("[Forge] boot " .. FORGE_VERSION)
 
 local function grab(name)
@@ -3863,9 +3863,6 @@ local function bindFarm()
 		if type(id) ~= "string" or type(live) ~= "table" then
 			return false
 		end
-		if live.DoNotTrack == true then
-			return false
-		end
 		local data = Flow.replicaData()
 		if data and type(data.CompletedQuests) == "table" and data.CompletedQuests[id] then
 			return false
@@ -4231,21 +4228,25 @@ local function bindFarm()
 			and a.target == b.target
 	end
 
-	function Flow.trackQuest(id)
-		if not id or Flow._trackedQuest == id then
+	function Flow.restoreHiddenQuests()
+		if Flow._restoredTracks then
 			return
 		end
-		Flow._trackedQuest = id
-		pcall(function()
-			local knit = require(ReplicatedStorage.Shared.Packages.Knit)
-			local svc = knit.GetService("QuestService")
-			if svc and svc.ClientTrackQuest then
-				local p = svc:ClientTrackQuest(id)
-				if p and p.await then
-					p:await()
-				end
+		Flow._restoredTracks = true
+		for id, live in pairs(Flow.liveQuests()) do
+			if type(id) == "string" and type(live) == "table" and live.DoNotTrack == true and type(live.Progress) == "table" then
+				pcall(function()
+					local knit = require(ReplicatedStorage.Shared.Packages.Knit)
+					local svc = knit.GetService("QuestService")
+					if svc and svc.ClientTrackQuest then
+						local p = svc:ClientTrackQuest(id)
+						if p and p.await then
+							p:await()
+						end
+					end
+				end)
 			end
-		end)
+		end
 	end
 
 	function Flow.clickDialogueAny()
@@ -4441,6 +4442,7 @@ local function bindFarm()
 			end
 			return
 		end
+		pcall(Flow.restoreHiddenQuests)
 		if Flow.buyName or Flow.sellFly or Flow.sellTalk then
 			return
 		end
@@ -4455,7 +4457,6 @@ local function bindFarm()
 			Flow.huntTarget = nil
 			Flow.arriveAt = 0
 			Flow.questJob = job
-			Flow.trackQuest(job.questId)
 		else
 			Flow.questJob = job
 		end
@@ -6908,6 +6909,7 @@ local function bindUi()
 		if not state.questOn then
 			Flow.questJob = nil
 			Flow._trackedQuest = nil
+			Flow._restoredTracks = nil
 			if not Flow.miningNow() then
 				Flow.stopHold()
 				Flow.target = nil
@@ -6923,6 +6925,7 @@ local function bindUi()
 		else
 			Flow.armSellClock()
 			state.status = "识别任务"
+			pcall(Flow.restoreHiddenQuests)
 		end
 	end)
 	huntBtn.MouseButton1Click:Connect(function()
