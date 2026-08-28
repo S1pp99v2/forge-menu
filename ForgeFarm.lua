@@ -1,6 +1,6 @@
 --!nocheck
 --!nolint
-local FORGE_VERSION = "1.1.12"
+local FORGE_VERSION = "1.1.13"
 print("[Forge] boot " .. FORGE_VERSION)
 
 local function grab(name)
@@ -145,6 +145,8 @@ local state = {
 	sellWait = 60,
 	uiOn = true,
 	page = "auto",
+	guideStage = "all",
+	openGuide = nil,
 	flySpeed = 70,
 	standDist = 4.5,
 	standPitch = 0,
@@ -556,6 +558,224 @@ Flow.zh = {
 function Flow.rockLabel(name)
 	return Flow.zh[name] or name
 end
+
+Flow.zhGear = {
+	Cutlass = "弯刀",
+	Chaos = "混沌剑",
+	["Hell Slayer"] = "地狱屠",
+	["Crystalized Broadsword"] = "结晶阔剑",
+	["Colossal Gemblade"] = "巨晶刃",
+	["Colossal Terrorblade"] = "巨恐刃",
+	["Dragon Slayer"] = "屠龙剑",
+	Uchigatana = "打刀",
+	["Kurokiba-gatana"] = "黑牙太刀",
+	["Knight Chestplate"] = "骑士胸甲",
+	["Dark Knight Chestplate"] = "暗骑胸甲",
+	["Raven's Chestplate"] = "鸦胸甲",
+	["Samurai Chestplate"] = "武士胸甲",
+	["Shogun's Chestplate"] = "将军胸甲",
+	["Goblin's Crown"] = "哥布林王冠",
+	["Vanguard Chestplate"] = "先锋胸甲",
+	["Knight Helmet"] = "骑士盔",
+	["Raven's Helmet"] = "鸦盔",
+}
+
+function Flow.gearLabel(name)
+	return Flow.zhGear[name] or Flow.zhSell[name] or Flow.zh[name] or name
+end
+
+Flow.guideMaps = {
+	{
+		id = 1,
+		title = "地图1 石醒十字",
+		areas = {
+			{
+				stage = "early",
+				stageName = "前期",
+				area = "铁谷 · 石子",
+				rocks = { "Pebble" },
+				tip = "石子掉石头、砂岩、铜铁和粪矿。词条要该矿至少 30% 才满。",
+				mix = { { "Iron", 70 }, { "Poopite", 30 } },
+				note = "铁铺面板，粪矿给武器和护甲臭味圈。",
+				weapon = "Cutlass",
+				armor = "Knight Chestplate",
+			},
+			{
+				stage = "mid",
+				stageName = "中期",
+				area = "铁谷 · 岩石",
+				rocks = { "Rock" },
+				tip = "岩石开始出银、锡、香蕉矿。还没有真正的进攻词条，先堆倍率。",
+				mix = { { "Bananite", 70 }, { "Silver", 30 } },
+				note = "香蕉矿 0.85x 是这层最高倍率。",
+				weapon = "Cutlass",
+				armor = "Knight Chestplate",
+			},
+			{
+				stage = "late",
+				stageName = "后期",
+				area = "铁谷 · 巨石",
+				rocks = { "Boulder" },
+				tip = "巨石出金、铂、艾特。图1毕业就在这里。幸运方块的菲奇矿倍率是 0，别拿去锻。",
+				mix = { { "Gold", 70 }, { "Poopite", 30 } },
+				note = "金好卖也好铺；粪矿 30% 吃满臭味。",
+				weapon = "Chaos",
+				armor = "Knight Chestplate",
+			},
+		},
+	},
+	{
+		id = 2,
+		title = "地图2 遗忘王国",
+		areas = {
+			{
+				stage = "early",
+				stageName = "前期",
+				area = "遗忘王国 · 玄武岩口",
+				rocks = { "Basalt Rock" },
+				tip = "玄武岩出眼矿、钴钛和青金石。眼矿是图2第一根进攻词条。",
+				mix = { { "Cobalt", 70 }, { "Eye Ore", 30 } },
+				note = "眼矿：生命-10%、增伤+15%，武器护甲都生效。",
+				weapon = "Chaos",
+				armor = "Dark Knight Chestplate",
+			},
+			{
+				stage = "mid",
+				stageName = "中期",
+				area = "遗忘王国 · 岩脉",
+				rocks = { "Basalt Core", "Basalt Vein" },
+				tip = "岩芯到岩脉出对决矿、秘银、铀、光矿。暴击和生存从这里分开做。",
+				mix = { { "Emerald", 70 }, { "Rivalite", 30 } },
+				note = "武器吃对决矿暴击 20%。护甲改 30% 秘银 + 30% 光矿 + 40% 绿宝石。",
+				weapon = "Hell Slayer",
+				armor = "Dark Knight Chestplate",
+				alt = { { "Mythril", 30 }, { "Lightite", 30 }, { "Emerald", 40 } },
+				altNote = "护甲备用：秘银生命、光矿移速。",
+			},
+			{
+				stage = "late",
+				stageName = "后期",
+				area = "火山深处 · 哥布林洞",
+				rocks = { "Volcanic Rock", "Earth Crystal", "Cyan Crystal", "Crimson Crystal", "Violet Crystal", "Light Crystal" },
+				tip = "火山出火矿、岩浆矿、恶魔矿、暗晶。水晶洞的奥术水晶 9x 没有词条，适合当填料。",
+				mix = { { "Arcane Crystal", 40 }, { "Magmaite", 30 }, { "Fireite", 30 } },
+				note = "武器：爆炸+燃烧。护甲用恶魔矿反伤着火，或黑曜石堆血。",
+				weapon = "Hell Slayer",
+				armor = "Goblin's Crown",
+				alt = { { "Obsidian", 40 }, { "Demonite", 30 }, { "Darkryte", 30 } },
+				altNote = "护甲备用：黑曜石生命、恶魔矿反伤、暗晶幻步。",
+			},
+		},
+	},
+	{
+		id = 3,
+		title = "地图3 霜尖原野",
+		areas = {
+			{
+				stage = "early",
+				stageName = "前期",
+				area = "霜原 · 冰石",
+				rocks = { "Icy Pebble", "Icy Rock", "Icy Boulder" },
+				tip = "冰石出钨、石墨、以太矿、雪矿、冰矿。石墨是图3第一件盾。",
+				mix = { { "Tungsten", 40 }, { "Graphite", 30 }, { "Aetherit", 30 } },
+				note = "护甲：石墨护盾+以太移速。武器把石墨换成雪矿吃冰雪伤害。",
+				weapon = "Crystalized Broadsword",
+				armor = "Raven's Chestplate",
+				alt = { { "Tungsten", 40 }, { "Snowite", 30 }, { "Aetherit", 30 } },
+				altNote = "武器备用：雪矿下雪，以太矿加攻速。",
+			},
+			{
+				stage = "mid",
+				stageName = "中期",
+				area = "山巅 · 冰晶",
+				rocks = { "Small Ice Crystal", "Medium Ice Crystal", "Large Ice Crystal", "Floating Crystal" },
+				tip = "山巅出绯红矿、虚空星、空灵矿、巨兽矿、天堂矿。暴击刀从虚空星开始。",
+				mix = { { "Gargantuan", 40 }, { "Voidstar", 30 }, { "Crimsonite", 30 } },
+				note = "武器：巨兽爆炸着火 + 虚空星暴击 + 绯红增伤。护甲用空灵矿。",
+				weapon = "Colossal Gemblade",
+				armor = "Raven's Chestplate",
+				alt = { { "Etherealite", 40 }, { "Sanctis", 30 }, { "Velchire", 30 } },
+				altNote = "护甲备用：空灵生命、圣域体力、魔翼移速。",
+			},
+			{
+				stage = "late",
+				stageName = "后期",
+				area = "鸦窟 · 冰山",
+				rocks = { "Small Red Crystal", "Medium Red Crystal", "Large Red Crystal", "Heart Of The Island", "Iceberg" },
+				tip = "红晶和岛之心出失心、杜兰、岛之心。冰山只掉沧龙矿，肉但极慢。",
+				mix = { { "Gargantuan", 70 }, { "Stolen Heart", 30 } },
+				note = "武器：巨兽铺倍率，失心 30% 吸血。护甲用岛之心狂暴或杜兰盾。",
+				weapon = "Colossal Gemblade",
+				armor = "Raven's Chestplate",
+				alt = { { "Duranite", 40 }, { "Heart Of The Island", 30 }, { "Etherealite", 30 } },
+				altNote = "护甲备用：杜兰盾、岛之心狂暴、空灵生命。纯肉可 100% 沧龙矿。",
+			},
+		},
+	},
+	{
+		id = 4,
+		title = "地图4 绯红樱岛",
+		areas = {
+			{
+				stage = "early",
+				stageName = "前期",
+				area = "竹洞",
+				rocks = { "Bamboo Pebble", "Bamboo Rock", "Bamboo Boulder" },
+				tip = "竹洞出缟玛瑙、虎眼石、地矿、青玉。图4第一根暴击矿是缟玛瑙。",
+				mix = { { "Onyx", 40 }, { "Tiger's Eye", 30 }, { "Magit", 30 } },
+				note = "武器：缟玛瑙暴击 + 虎眼攻速增伤（掉血）。护甲用地矿和青玉。",
+				weapon = "Uchigatana",
+				armor = "Samurai Chestplate",
+				alt = { { "Cyanite Jade", 40 }, { "Earthite", 30 }, { "Duquack", 30 } },
+				altNote = "护甲备用：青玉生命、地矿生命、鸭矿跳跃闪避。",
+			},
+			{
+				stage = "mid",
+				stageName = "中期",
+				area = "圣树",
+				rocks = { "Hana Pebble", "Glowy Rock", "Blossom Boulder" },
+				tip = "圣树出封咒、日石、招财猫、天球、陨石。玻璃炮和挖矿甲都在这做。",
+				mix = { { "Sun Stone", 40 }, { "Sealed Curse", 30 }, { "Onyx", 30 } },
+				note = "武器：日石火 + 封咒增伤 30%（掉血掉速）+ 缟玛瑙暴击。",
+				weapon = "Kurokiba-gatana",
+				armor = "Samurai Chestplate",
+				alt = { { "Heavenly Orb", 40 }, { "Lucky Cat", 30 }, { "Duquack", 30 } },
+				altNote = "护甲备用：天球盾和回血、招财猫幸运多掉、鸭矿机动。",
+				craft = {
+					dest = "Kokorite",
+					parts = { { "Sealed Curse", 5 }, { "Roosite", 7 } },
+					gold = 4000,
+					station = "绯红樱岛锻造台",
+				},
+			},
+			{
+				stage = "late",
+				stageName = "后期",
+				area = "灵窟 · 虚空",
+				rocks = { "Spirit Rock", "Soul Boulder", "Sakura Crystal", "Thunder Core" },
+				tip = "灵岩/魂石要灵镐。阴、阳打灵窟怪掉，合成阴阳。九尾矿打阿修罗化身。星系矿在虚空合成。",
+				mix = { { "Galaxite", 70 }, { "Kyubite", 30 } },
+				note = "毕业武器：星系矿黑洞暴击 + 九尾火。没星系矿就用阴阳 30% + 陨石 30% + 日石 40%。",
+				weapon = "Colossal Terrorblade",
+				armor = "Shogun's Chestplate",
+				alt = { { "Galaxite", 70 }, { "Sentira", 30 } },
+				altNote = "毕业护甲：星系矿盾+回血，感知矿再叠一层盾和反伤。",
+				craft = {
+					dest = "Galaxite",
+					parts = { { "Anti Matter", 3 }, { "Singularity", 1 }, { "Supermassive Black Hole", 1 } },
+					gold = 25000,
+					station = "星系守护",
+				},
+				craft2 = {
+					dest = "Yin-Yang",
+					parts = { { "Yin", 1 }, { "Yang", 1 } },
+					gold = 5000,
+					station = "绯红樱岛锻造台",
+				},
+			},
+		},
+	},
+}
 
 Flow.needPick = {
 	["Spirit Rock"] = { "Spirit Pickaxe", "Yin-Yang Pickaxe", "Dev's Bane Pickaxe" },
@@ -2708,11 +2928,16 @@ local function bindUi()
 	statusLab.TextSize = 12
 	statusLab.Parent = window
 
-	local left = Instance.new("Frame")
+	local left = Instance.new("ScrollingFrame")
 	left.BackgroundTransparency = 1
+	left.BorderSizePixel = 0
 	left.ZIndex = 51
 	left.Position = UDim2.fromOffset(8, 64)
-	left.Size = UDim2.new(0, 88, 1, -20)
+	left.Size = UDim2.new(0, 92, 1, -20)
+	left.CanvasSize = UDim2.new(0, 0, 0, 0)
+	left.AutomaticCanvasSize = Enum.AutomaticSize.Y
+	left.ScrollBarThickness = 2
+	left.ScrollBarImageColor3 = C.line
 	left.Parent = window
 	local leftList = Instance.new("UIListLayout")
 	leftList.Padding = UDim.new(0, 6)
@@ -2726,8 +2951,8 @@ local function bindUi()
 		b.Font = Enum.Font.GothamBold
 		b.Text = text
 		b.TextColor3 = C.text
-		b.TextSize = 13
-		b.Size = UDim2.new(1, 0, 0, 32)
+		b.TextSize = 12
+		b.Size = UDim2.new(1, -4, 0, 28)
 		b.LayoutOrder = order
 		b.AutoButtonColor = true
 		b.Parent = left
@@ -2738,13 +2963,14 @@ local function bindUi()
 	local catHunt = mkCat("打怪", 2)
 	local catPot = mkCat("药水", 3)
 	local catSell = mkCat("出售", 4)
-	local catOther = mkCat("其他", 5)
+	local catGuide = mkCat("锻造指南", 5)
+	local catOther = mkCat("其他", 6)
 
 	local right = Instance.new("Frame")
 	right.BackgroundTransparency = 1
 	right.ZIndex = 51
-	right.Position = UDim2.fromOffset(104, 64)
-	right.Size = UDim2.new(1, -112, 1, -20)
+	right.Position = UDim2.fromOffset(108, 64)
+	right.Size = UDim2.new(1, -116, 1, -20)
 	right.Parent = window
 
 	local function mkPage()
@@ -2768,10 +2994,12 @@ local function bindUi()
 	local huntPage = mkPage()
 	local potPage = mkPage()
 	local sellPage = mkPage()
+	local guidePage = mkPage()
 	local otherPage = mkPage()
 	huntPage.Visible = false
 	potPage.Visible = false
 	sellPage.Visible = false
+	guidePage.Visible = false
 	otherPage.Visible = false
 
 	local function showPage(name)
@@ -2780,17 +3008,22 @@ local function bindUi()
 		huntPage.Visible = name == "hunt"
 		potPage.Visible = name == "pot"
 		sellPage.Visible = name == "sell"
+		guidePage.Visible = name == "guide"
 		otherPage.Visible = name == "other"
 		catAuto.BackgroundColor3 = name == "auto" and C.tab or C.btn
 		catHunt.BackgroundColor3 = name == "hunt" and C.tab or C.btn
 		catPot.BackgroundColor3 = name == "pot" and C.tab or C.btn
 		catSell.BackgroundColor3 = name == "sell" and C.tab or C.btn
+		catGuide.BackgroundColor3 = name == "guide" and C.tab or C.btn
 		catOther.BackgroundColor3 = name == "other" and C.tab or C.btn
 		if name == "pot" then
 			Flow.refreshPotChecks()
 		end
 		if name == "sell" then
 			Flow.refreshSellList()
+		end
+		if name == "guide" and Flow.ensureGuideIcons then
+			Flow.ensureGuideIcons()
 		end
 	end
 	showPage("auto")
@@ -2805,6 +3038,9 @@ local function bindUi()
 	end)
 	catSell.MouseButton1Click:Connect(function()
 		showPage("sell")
+	end)
+	catGuide.MouseButton1Click:Connect(function()
+		showPage("guide")
 	end)
 	catOther.MouseButton1Click:Connect(function()
 		showPage("other")
@@ -2942,6 +3178,65 @@ local function bindUi()
 			local vp = knit.GetController("UIController").Modules.Viewport
 			if vp and vp.new then
 				vp.new(vf, model)
+				usedGame = true
+			end
+		end)
+		if usedGame then
+			task.defer(aimViewport, vf, model)
+			return
+		end
+		model.Parent = vf
+		local cam = Instance.new("Camera")
+		cam.FieldOfView = 1
+		cam.Parent = vf
+		vf.CurrentCamera = cam
+		aimViewport(vf, model)
+		task.defer(aimViewport, vf, model)
+	end
+
+	local function fillGearIcon(vf, gearType, oreName)
+		if not (vf and type(gearType) == "string") then
+			return
+		end
+		local model
+		pcall(function()
+			local Equipments = require(ReplicatedStorage.Shared.Data.Equipments)
+			if Equipments and Equipments.GetItemModel then
+				model = Equipments:GetItemModel({
+					Type = gearType,
+					Name = gearType,
+					Ore = oreName,
+					Quality = 80,
+				})
+			end
+		end)
+		if not model then
+			fillRockIcon(vf, oreName, "Ore")
+			return
+		end
+		for _, child in ipairs(vf:GetChildren()) do
+			if child:IsA("WorldModel") or child:IsA("Camera") or child:IsA("Model") or child:IsA("ImageLabel") then
+				child:Destroy()
+			end
+		end
+		for _, d in ipairs(model:GetDescendants()) do
+			if d:IsA("Script") or d:IsA("LocalScript") or d:IsA("Sound") then
+				d:Destroy()
+			elseif d:IsA("ParticleEmitter") or d:IsA("Beam") or d:IsA("Trail") then
+				d.Enabled = false
+			elseif d:IsA("BasePart") then
+				d.Anchored = true
+			end
+		end
+		local usedGame = false
+		pcall(function()
+			local knit = require(ReplicatedStorage.Shared.Packages.Knit)
+			local vp = knit.GetController("UIController").Modules.Viewport
+			if vp and vp.new then
+				vp.new(vf, model, nil, {
+					Fit = true,
+					Z = 55,
+				})
 				usedGame = true
 			end
 		end)
@@ -3721,6 +4016,420 @@ local function bindUi()
 		Flow.refreshSellList()
 	end)
 	Flow.refreshSellList()
+
+	local function mkGuideVf(parent, size, pos)
+		local vf = Instance.new("ViewportFrame")
+		vf.BackgroundColor3 = Color3.fromRGB(14, 22, 32)
+		vf.BorderSizePixel = 0
+		vf.Size = size
+		vf.Position = pos or UDim2.fromOffset(0, 0)
+		vf.LightColor = Color3.fromRGB(255, 255, 255)
+		vf.Ambient = Color3.fromRGB(170, 170, 170)
+		vf.LightDirection = Vector3.new(-1, -1, -1)
+		vf.Parent = parent
+		corner(vf, 6)
+		return vf
+	end
+
+	local function mkGuideCell(parent, kind, name, caption, order, extra)
+		local cell = Instance.new("Frame")
+		cell.BackgroundTransparency = 1
+		cell.Size = UDim2.fromOffset(72, 94)
+		cell.LayoutOrder = order or 0
+		cell.Parent = parent
+		local vf = mkGuideVf(cell, UDim2.fromOffset(68, 68), UDim2.fromOffset(2, 0))
+		vf:SetAttribute("GuideKind", kind)
+		vf:SetAttribute("GuideName", name)
+		if extra then
+			vf:SetAttribute("GuideOre", extra)
+		end
+		local lab = Instance.new("TextLabel")
+		lab.BackgroundTransparency = 1
+		lab.Font = Enum.Font.Gotham
+		lab.Text = caption or ""
+		lab.TextColor3 = C.text
+		lab.TextSize = 10
+		lab.TextWrapped = true
+		lab.TextXAlignment = Enum.TextXAlignment.Center
+		lab.TextYAlignment = Enum.TextYAlignment.Top
+		lab.Position = UDim2.fromOffset(0, 70)
+		lab.Size = UDim2.new(1, 0, 0, 24)
+		lab.Parent = cell
+		return cell
+	end
+
+	local function ensureGuideIcons()
+		if not guidePage.Visible then
+			return
+		end
+		for _, vf in ipairs(guidePage:GetDescendants()) do
+			if vf:IsA("ViewportFrame") then
+				local kind = vf:GetAttribute("GuideKind")
+				local name = vf:GetAttribute("GuideName")
+				if kind and name and not vf:GetAttribute("Filled") then
+					local vis = true
+					local p = vf.Parent
+					while p and p ~= guidePage do
+						if p:IsA("GuiObject") and not p.Visible then
+							vis = false
+							break
+						end
+						p = p.Parent
+					end
+					if vis then
+						vf:SetAttribute("Filled", true)
+						if kind == "Gear" then
+							fillGearIcon(vf, name, vf:GetAttribute("GuideOre"))
+						else
+							fillRockIcon(vf, name, kind)
+						end
+					end
+				end
+			end
+		end
+	end
+	Flow.ensureGuideIcons = ensureGuideIcons
+
+	local guideHint = Instance.new("TextLabel")
+	guideHint.BackgroundTransparency = 1
+	guideHint.Font = Enum.Font.Gotham
+	guideHint.Text = "按当前地图展开。词条要该矿 ≥30% 才满。矿石和成品都是游戏模型。"
+	guideHint.TextColor3 = C.dim
+	guideHint.TextSize = 11
+	guideHint.TextXAlignment = Enum.TextXAlignment.Left
+	guideHint.TextWrapped = true
+	guideHint.Size = UDim2.new(1, 0, 0, 28)
+	guideHint.LayoutOrder = 1
+	guideHint.Parent = guidePage
+
+	local stageBar = Instance.new("Frame")
+	stageBar.BackgroundTransparency = 1
+	stageBar.Size = UDim2.new(1, 0, 0, 26)
+	stageBar.LayoutOrder = 2
+	stageBar.Parent = guidePage
+	local stageBtns = {}
+	local stageDefs = {
+		{ id = "all", text = "全部" },
+		{ id = "early", text = "前期" },
+		{ id = "mid", text = "中期" },
+		{ id = "late", text = "后期" },
+	}
+	local function paintStage()
+		for _, def in ipairs(stageDefs) do
+			local b = stageBtns[def.id]
+			if b then
+				b.BackgroundColor3 = state.guideStage == def.id and C.tab or C.btn
+			end
+		end
+	end
+	for i, def in ipairs(stageDefs) do
+		local b = Instance.new("TextButton")
+		b.BackgroundColor3 = C.btn
+		b.BorderSizePixel = 0
+		b.Font = Enum.Font.GothamBold
+		b.Text = def.text
+		b.TextColor3 = C.text
+		b.TextSize = 12
+		b.Size = UDim2.new(0.25, -4, 1, 0)
+		b.Position = UDim2.new((i - 1) * 0.25, 2, 0, 0)
+		b.AutoButtonColor = true
+		b.Parent = stageBar
+		corner(b, 4)
+		stageBtns[def.id] = b
+		b.MouseButton1Click:Connect(function()
+			state.guideStage = def.id
+			paintStage()
+			if Flow.refreshGuideFilter then
+				Flow.refreshGuideFilter()
+			end
+			ensureGuideIcons()
+		end)
+	end
+	paintStage()
+
+	local guideHeads = {}
+	state.openGuide = Flow.placeMap[game.PlaceId] or 3
+
+	local function addMixRow(parent, mix, order, lookOre)
+		local row = Instance.new("Frame")
+		row.BackgroundTransparency = 1
+		row.AutomaticSize = Enum.AutomaticSize.Y
+		row.Size = UDim2.new(1, 0, 0, 0)
+		row.LayoutOrder = order
+		row.Parent = parent
+		local lay = Instance.new("UIListLayout")
+		lay.FillDirection = Enum.FillDirection.Horizontal
+		lay.Padding = UDim.new(0, 6)
+		lay.SortOrder = Enum.SortOrder.LayoutOrder
+		lay.Parent = row
+		for i, part in ipairs(mix) do
+			local oreName, pct = part[1], part[2]
+			mkGuideCell(row, "Ore", oreName, Flow.sellLabel(oreName) .. " " .. tostring(pct) .. "%", i, lookOre)
+		end
+		return row
+	end
+
+	local function addCraftRow(parent, craft, order)
+		if not craft then
+			return order
+		end
+		local title = Instance.new("TextLabel")
+		title.BackgroundTransparency = 1
+		title.Font = Enum.Font.Gotham
+		title.Text = "合成 "
+			.. Flow.sellLabel(craft.dest)
+			.. (craft.station and (" · " .. craft.station) or "")
+			.. (craft.gold and (" · " .. tostring(craft.gold) .. "金") or "")
+		title.TextColor3 = C.dim
+		title.TextSize = 11
+		title.TextXAlignment = Enum.TextXAlignment.Left
+		title.Size = UDim2.new(1, 0, 0, 16)
+		title.LayoutOrder = order
+		title.Parent = parent
+		local row = Instance.new("Frame")
+		row.BackgroundTransparency = 1
+		row.AutomaticSize = Enum.AutomaticSize.Y
+		row.Size = UDim2.new(1, 0, 0, 0)
+		row.LayoutOrder = order + 1
+		row.Parent = parent
+		local lay = Instance.new("UIListLayout")
+		lay.FillDirection = Enum.FillDirection.Horizontal
+		lay.Padding = UDim.new(0, 6)
+		lay.SortOrder = Enum.SortOrder.LayoutOrder
+		lay.Parent = row
+		mkGuideCell(row, "Ore", craft.dest, Flow.sellLabel(craft.dest), 1)
+		for i, part in ipairs(craft.parts) do
+			mkGuideCell(row, "Ore", part[1], Flow.sellLabel(part[1]) .. " x" .. tostring(part[2]), i + 1)
+		end
+		return order + 2
+	end
+
+	local function mkGuideArea(parent, area, order)
+		local card = Instance.new("Frame")
+		card.BackgroundColor3 = C.panel
+		card.BorderSizePixel = 0
+		card.AutomaticSize = Enum.AutomaticSize.Y
+		card.Size = UDim2.new(1, 0, 0, 0)
+		card.LayoutOrder = order
+		card.Parent = parent
+		card:SetAttribute("GuideStage", area.stage)
+		corner(card, 6)
+		local pad = Instance.new("UIPadding")
+		pad.PaddingTop = UDim.new(0, 8)
+		pad.PaddingBottom = UDim.new(0, 8)
+		pad.PaddingLeft = UDim.new(0, 8)
+		pad.PaddingRight = UDim.new(0, 8)
+		pad.Parent = card
+		local list = Instance.new("UIListLayout")
+		list.Padding = UDim.new(0, 6)
+		list.SortOrder = Enum.SortOrder.LayoutOrder
+		list.Parent = card
+
+		local head = Instance.new("TextLabel")
+		head.BackgroundTransparency = 1
+		head.Font = Enum.Font.GothamBold
+		head.Text = area.stageName .. "  " .. area.area
+		head.TextColor3 = C.text
+		head.TextSize = 13
+		head.TextXAlignment = Enum.TextXAlignment.Left
+		head.Size = UDim2.new(1, 0, 0, 18)
+		head.LayoutOrder = 1
+		head.Parent = card
+
+		local tip = Instance.new("TextLabel")
+		tip.BackgroundTransparency = 1
+		tip.Font = Enum.Font.Gotham
+		tip.Text = area.tip or ""
+		tip.TextColor3 = C.dim
+		tip.TextSize = 11
+		tip.TextWrapped = true
+		tip.TextXAlignment = Enum.TextXAlignment.Left
+		tip.AutomaticSize = Enum.AutomaticSize.Y
+		tip.Size = UDim2.new(1, 0, 0, 16)
+		tip.LayoutOrder = 2
+		tip.Parent = card
+
+		local rockLab = Instance.new("TextLabel")
+		rockLab.BackgroundTransparency = 1
+		rockLab.Font = Enum.Font.Gotham
+		rockLab.Text = "矿区"
+		rockLab.TextColor3 = C.dim
+		rockLab.TextSize = 11
+		rockLab.TextXAlignment = Enum.TextXAlignment.Left
+		rockLab.Size = UDim2.new(1, 0, 0, 14)
+		rockLab.LayoutOrder = 3
+		rockLab.Parent = card
+		local rockRow = Instance.new("Frame")
+		rockRow.BackgroundTransparency = 1
+		rockRow.AutomaticSize = Enum.AutomaticSize.Y
+		rockRow.Size = UDim2.new(1, 0, 0, 0)
+		rockRow.LayoutOrder = 4
+		rockRow.Parent = card
+		local rockLay = Instance.new("UIListLayout")
+		rockLay.FillDirection = Enum.FillDirection.Horizontal
+		rockLay.Padding = UDim.new(0, 6)
+		rockLay.SortOrder = Enum.SortOrder.LayoutOrder
+		rockLay.Parent = rockRow
+		for i, rockName in ipairs(area.rocks) do
+			mkGuideCell(rockRow, "Rock", rockName, Flow.rockLabel(rockName), i)
+		end
+
+		local lookOre = area.mix and area.mix[1] and area.mix[1][1]
+		local mixLab = Instance.new("TextLabel")
+		mixLab.BackgroundTransparency = 1
+		mixLab.Font = Enum.Font.Gotham
+		mixLab.Text = "锻造配方 · " .. (area.note or "")
+		mixLab.TextColor3 = C.dim
+		mixLab.TextSize = 11
+		mixLab.TextWrapped = true
+		mixLab.TextXAlignment = Enum.TextXAlignment.Left
+		mixLab.AutomaticSize = Enum.AutomaticSize.Y
+		mixLab.Size = UDim2.new(1, 0, 0, 14)
+		mixLab.LayoutOrder = 5
+		mixLab.Parent = card
+		addMixRow(card, area.mix, 6, lookOre)
+
+		local gearLab = Instance.new("TextLabel")
+		gearLab.BackgroundTransparency = 1
+		gearLab.Font = Enum.Font.Gotham
+		gearLab.Text = "成品样子"
+		gearLab.TextColor3 = C.dim
+		gearLab.TextSize = 11
+		gearLab.TextXAlignment = Enum.TextXAlignment.Left
+		gearLab.Size = UDim2.new(1, 0, 0, 14)
+		gearLab.LayoutOrder = 7
+		gearLab.Parent = card
+		local gearRow = Instance.new("Frame")
+		gearRow.BackgroundTransparency = 1
+		gearRow.AutomaticSize = Enum.AutomaticSize.Y
+		gearRow.Size = UDim2.new(1, 0, 0, 0)
+		gearRow.LayoutOrder = 8
+		gearRow.Parent = card
+		local gearLay = Instance.new("UIListLayout")
+		gearLay.FillDirection = Enum.FillDirection.Horizontal
+		gearLay.Padding = UDim.new(0, 8)
+		gearLay.SortOrder = Enum.SortOrder.LayoutOrder
+		gearLay.Parent = gearRow
+		if area.weapon then
+			mkGuideCell(gearRow, "Gear", area.weapon, "武器 " .. Flow.gearLabel(area.weapon), 1, lookOre)
+		end
+		if area.armor then
+			mkGuideCell(gearRow, "Gear", area.armor, "护甲 " .. Flow.gearLabel(area.armor), 2, lookOre)
+		end
+
+		local nextOrder = 9
+		if area.alt then
+			local altLab = Instance.new("TextLabel")
+			altLab.BackgroundTransparency = 1
+			altLab.Font = Enum.Font.Gotham
+			altLab.Text = area.altNote or "备用配方"
+			altLab.TextColor3 = C.dim
+			altLab.TextSize = 11
+			altLab.TextWrapped = true
+			altLab.TextXAlignment = Enum.TextXAlignment.Left
+			altLab.AutomaticSize = Enum.AutomaticSize.Y
+			altLab.Size = UDim2.new(1, 0, 0, 14)
+			altLab.LayoutOrder = nextOrder
+			altLab.Parent = card
+			addMixRow(card, area.alt, nextOrder + 1, area.alt[1] and area.alt[1][1])
+			nextOrder = nextOrder + 2
+		end
+		nextOrder = addCraftRow(card, area.craft, nextOrder)
+		nextOrder = addCraftRow(card, area.craft2, nextOrder)
+		return card
+	end
+
+	for i, map in ipairs(Flow.guideMaps) do
+		local wrap = Instance.new("Frame")
+		wrap.BackgroundTransparency = 1
+		wrap.AutomaticSize = Enum.AutomaticSize.Y
+		wrap.Size = UDim2.new(1, 0, 0, 32)
+		wrap.LayoutOrder = 10 + i
+		wrap.Parent = guidePage
+		local wrapList = Instance.new("UIListLayout")
+		wrapList.Padding = UDim.new(0, 4)
+		wrapList.SortOrder = Enum.SortOrder.LayoutOrder
+		wrapList.Parent = wrap
+
+		local head = Instance.new("TextButton")
+		head.BackgroundColor3 = C.panel
+		head.BorderSizePixel = 0
+		head.Font = Enum.Font.GothamBold
+		head.TextColor3 = C.text
+		head.TextSize = 13
+		head.TextXAlignment = Enum.TextXAlignment.Left
+		head.Size = UDim2.new(1, 0, 0, 32)
+		head.LayoutOrder = 1
+		head.AutoButtonColor = true
+		head.Parent = wrap
+		local hpad = Instance.new("UIPadding")
+		hpad.PaddingLeft = UDim.new(0, 10)
+		hpad.Parent = head
+		corner(head, 4)
+
+		local body = Instance.new("Frame")
+		body.BackgroundTransparency = 1
+		body.AutomaticSize = Enum.AutomaticSize.Y
+		body.Size = UDim2.new(1, 0, 0, 0)
+		body.LayoutOrder = 2
+		body.Visible = state.openGuide == map.id
+		body.Parent = wrap
+		local bodyList = Instance.new("UIListLayout")
+		bodyList.Padding = UDim.new(0, 6)
+		bodyList.SortOrder = Enum.SortOrder.LayoutOrder
+		bodyList.Parent = body
+
+		local cards = {}
+		for ai, area in ipairs(map.areas) do
+			cards[#cards + 1] = mkGuideArea(body, area, ai)
+		end
+
+		local function updateHead()
+			local mark = body.Visible and "▾" or "▸"
+			local here = (Flow.placeMap[game.PlaceId] or 0) == map.id
+			head.Text = mark .. "  " .. map.title .. (here and "    当前地图" or "")
+		end
+		guideHeads[map.id] = { update = updateHead, body = body, cards = cards }
+		updateHead()
+
+		head.MouseButton1Click:Connect(function()
+			if state.openGuide == map.id then
+				state.openGuide = nil
+				body.Visible = false
+			else
+				state.openGuide = map.id
+				for id, pack in pairs(guideHeads) do
+					if pack.body then
+						pack.body.Visible = id == map.id
+					end
+					if pack.update then
+						pack.update()
+					end
+				end
+				ensureGuideIcons()
+				return
+			end
+			updateHead()
+		end)
+	end
+
+	function Flow.refreshGuideFilter()
+		for _, pack in pairs(guideHeads) do
+			for _, card in ipairs(pack.cards or {}) do
+				local st = card:GetAttribute("GuideStage")
+				card.Visible = state.guideStage == "all" or st == state.guideStage
+			end
+		end
+	end
+	Flow.refreshGuideFilter()
+
+	local openGuide = guideHeads[state.openGuide]
+	if openGuide and openGuide.body then
+		openGuide.body.Visible = true
+		if openGuide.update then
+			openGuide.update()
+		end
+	end
 
 	local otherHint = Instance.new("TextLabel")
 	otherHint.BackgroundTransparency = 1
