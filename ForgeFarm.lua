@@ -1,6 +1,6 @@
 --!nocheck
 --!nolint
-local FORGE_VERSION = "1.1.19"
+local FORGE_VERSION = "1.1.20"
 print("[Forge] boot " .. FORGE_VERSION)
 
 local function grab(name)
@@ -1660,8 +1660,8 @@ function Flow.objDone(prog)
 	if type(prog) ~= "table" then
 		return false
 	end
-	local cur = tonumber(prog.currentProgress) or 0
-	local need = tonumber(prog.requiredAmount)
+	local cur = tonumber(prog.currentProgress or prog.CurrentProgress) or 0
+	local need = tonumber(prog.requiredAmount or prog.RequiredAmount)
 	if not need then
 		return cur > 0
 	end
@@ -2280,6 +2280,7 @@ Flow.zhSell = {
 	["Epic Essence"] = "史诗精华",
 	["Legendary Essence"] = "传奇精华",
 	["Mythical Essence"] = "神话精华",
+	Skull = "头骨",
 	["Developer Sigil"] = "开发印记",
 	["Blast Chip"] = "爆破碎片",
 	["Chill Dust"] = "寒霜粉",
@@ -2664,6 +2665,87 @@ local function bindFarm()
 		end
 		local part = m.PrimaryPart or m:FindFirstChild("HumanoidRootPart") or m:FindFirstChildWhichIsA("BasePart", true)
 		return part and part.Position or nil
+	end
+
+	function Flow.pickupTaken(model)
+		if not (model and model.Parent) then
+			return true
+		end
+		local prompt = model:FindFirstChildWhichIsA("ProximityPrompt", true)
+		if prompt and prompt.Enabled == false then
+			return true
+		end
+		return false
+	end
+
+	function Flow.eachPickup(name, fn)
+		if type(name) ~= "string" or name == "" then
+			return
+		end
+		local prox = workspace:FindFirstChild("Proximity")
+		if not prox then
+			return
+		end
+		local seen = {}
+		local function hit(model)
+			if model and not seen[model] then
+				seen[model] = true
+				fn(model)
+			end
+		end
+		hit(prox:FindFirstChild(name))
+		for i = 1, 9 do
+			hit(prox:FindFirstChild(name .. tostring(i)))
+			hit(prox:FindFirstChild(name .. " " .. tostring(i)))
+		end
+		for _, ch in ipairs(prox:GetChildren()) do
+			if ch.Name == name or string.sub(ch.Name, 1, #name) == name then
+				hit(ch)
+			end
+		end
+	end
+
+	function Flow.nearestPickup(name)
+		local hrp = Flow.hrp()
+		local best
+		local bestD
+		Flow.eachPickup(name, function(model)
+			if Flow.pickupTaken(model) then
+				return
+			end
+			local part = model.PrimaryPart or model:FindFirstChildWhichIsA("BasePart", true)
+			if not part then
+				return
+			end
+			local d = hrp and (part.Position - hrp.Position).Magnitude or 0
+			if not bestD or d < bestD then
+				best = model
+				bestD = d
+			end
+		end)
+		return best
+	end
+
+	function Flow.pickupPos(name)
+		local m = Flow.nearestPickup(name)
+		if not m then
+			return nil
+		end
+		local part = m.PrimaryPart or m:FindFirstChildWhichIsA("BasePart", true)
+		return part and part.Position or nil
+	end
+
+	function Flow.isShopTarget(name)
+		if type(name) ~= "string" or name == "" then
+			return false
+		end
+		if string.find(name, "Pickaxe", 1, true) or string.find(name, "Potion", 1, true) then
+			return true
+		end
+		if Flow.nearestPickup(name) then
+			return false
+		end
+		return Flow.shopModel(name) ~= nil
 	end
 
 	function Flow.potionTool(id)
@@ -3516,6 +3598,12 @@ local function bindFarm()
 					return CFrame.new(pos + Vector3.new(0, 5, 0)), pos, "shop"
 				end
 			end
+			if job.kind == "pickup" and job.item then
+				local pos = Flow.pickupPos(job.item)
+				if pos then
+					return CFrame.new(pos + Vector3.new(0, 4, 0)), pos, "pickup"
+				end
+			end
 		end
 		if Flow.buyName and Flow.shopPos(Flow.buyName) then
 			local pos = Flow.shopPos(Flow.buyName)
@@ -3743,6 +3831,83 @@ local function bindFarm()
 		return type(q) == "table" and q or {}
 	end
 
+	function Flow.hudQuestIds()
+		local ids = {}
+		local function absorb(list)
+			if not list then
+				return
+			end
+			for _, child in ipairs(list:GetChildren()) do
+				local id = string.match(child.Name, "^(.+)Title$")
+				if id and child:IsA("GuiObject") and child.Visible ~= false then
+					ids[id] = true
+				end
+			end
+		end
+		pcall(function()
+			local knit = require(ReplicatedStorage.Shared.Packages.Knit)
+			local ui = knit.GetController("UIController")
+			local list = ui and ui.Main and ui.Main.Screen and ui.Main.Screen.Quests and ui.Main.Screen.Quests.List
+			absorb(list)
+		end)
+		if not next(ids) then
+			pcall(function()
+				local quests = playerGui:FindFirstChild("Quests", true)
+				absorb(quests and quests:FindFirstChild("List"))
+			end)
+		end
+		return ids
+	end
+
+	function Flow.isListedLive(id, live)
+		if type(id) ~= "string" or type(live) ~= "table" then
+			return false
+		end
+		if live.DoNotTrack == true then
+			return false
+		end
+		local data = Flow.replicaData()
+		if data and type(data.CompletedQuests) == "table" and data.CompletedQuests[id] then
+			return false
+		end
+		if type(live.Progress) ~= "table" or next(live.Progress) == nil then
+			return false
+		end
+		return true
+	end
+
+	function Flow.listedQuests()
+		local raw = Flow.liveQuests()
+		local out = {}
+		local seen = {}
+		local function add(id, live)
+			if seen[id] or not Flow.isListedLive(id, live) then
+				return
+			end
+			seen[id] = true
+			out[#out + 1] = { id = id, live = live }
+		end
+		for id, live in pairs(raw) do
+			add(id, live)
+		end
+		for id in pairs(Flow.questBook()) do
+			add(id, raw[id])
+		end
+		local hud = Flow.hudQuestIds()
+		if next(hud) then
+			local filtered = {}
+			for _, e in ipairs(out) do
+				if hud[e.id] then
+					filtered[#filtered + 1] = e
+				end
+			end
+			if #filtered > 0 then
+				return filtered
+			end
+		end
+		return out
+	end
+
 	function Flow.objTypeOf(prog, def)
 		if type(prog) == "table" then
 			local t = prog.questType or prog.Type or prog.type
@@ -3946,9 +4111,15 @@ local function bindFarm()
 				job.label = "当前图挖不到 " .. Flow.itemLabel(target)
 				return job
 			end
-			job.kind = "shop"
-			job.shop = target
-			job.label = "任务买 " .. Flow.itemLabel(target)
+			if Flow.isShopTarget(target) then
+				job.kind = "shop"
+				job.shop = target
+				job.label = "任务买 " .. Flow.itemLabel(target)
+				return job
+			end
+			job.kind = "pickup"
+			job.item = target
+			job.label = "任务捡 " .. Flow.itemLabel(target) .. (frac and (" " .. frac) or "")
 			return job
 		end
 		if typ == "Kill" and target then
@@ -4004,18 +4175,47 @@ local function bindFarm()
 		return job
 	end
 
+	function Flow.jobDoableHere(job)
+		if not job then
+			return false
+		end
+		if job.kind == "mine" then
+			return job.rocks and next(job.rocks) ~= nil
+		end
+		if job.kind == "hunt" then
+			return true
+		end
+		if job.kind == "talk" then
+			return Flow.npcPos(job.npc) ~= nil
+		end
+		if job.kind == "shop" then
+			return Flow.shopPos(job.shop) ~= nil
+		end
+		if job.kind == "pickup" then
+			return Flow.nearestPickup(job.item) ~= nil
+		end
+		if job.kind == "equip" then
+			return true
+		end
+		return false
+	end
+
 	function Flow.pickQuestJob()
-		local bestPri
 		local best
-		for id, live in pairs(Flow.liveQuests()) do
-			if type(id) == "string" and type(live) == "table" and Flow.questFitsHere(id, live) then
-				local job = Flow.buildQuestJob(id, live)
-				if job then
-					local pri = Flow.questPriority(id)
-					if not bestPri or pri < bestPri then
-						bestPri = pri
-						best = job
-					end
+		local bestScore
+		for _, e in ipairs(Flow.listedQuests()) do
+			local job = Flow.buildQuestJob(e.id, e.live)
+			if job then
+				local score = Flow.questPriority(e.id)
+				if not Flow.jobDoableHere(job) then
+					score = score + 5000
+				end
+				if job.kind == "wait" or job.kind == "ui" then
+					score = score + 8000
+				end
+				if not bestScore or score < bestScore then
+					bestScore = score
+					best = job
 				end
 			end
 		end
@@ -4163,6 +4363,49 @@ local function bindFarm()
 		Flow.buyPotion(job.shop, 1)
 	end
 
+	function Flow.firePickup(model)
+		if not model then
+			return false
+		end
+		local prompt = model:FindFirstChildWhichIsA("ProximityPrompt", true)
+		if not prompt then
+			return false
+		end
+		pcall(function()
+			local fire = grab("fireproximityprompt")
+			if type(fire) == "function" then
+				fire(prompt)
+			end
+		end)
+		pcall(function()
+			prompt:InputHoldBegin()
+		end)
+		pcall(function()
+			prompt:InputHoldEnd()
+		end)
+		return true
+	end
+
+	function Flow.doQuestPickup(job)
+		local model = Flow.nearestPickup(job.item)
+		local pos = Flow.pickupPos(job.item)
+		if not (model and pos) then
+			state.status = "找不到 " .. Flow.itemLabel(job.item)
+			return
+		end
+		local hrp = Flow.hrp()
+		if hrp and (hrp.Position - pos).Magnitude > 10 then
+			state.status = "去捡 " .. Flow.itemLabel(job.item)
+			return
+		end
+		state.status = job.label
+		if os.clock() - (Flow.questTalkAt or 0) < 0.8 then
+			return
+		end
+		Flow.questTalkAt = os.clock()
+		Flow.firePickup(model)
+	end
+
 	function Flow.doQuestEquip(job)
 		local hum = Flow.hum()
 		local tool = job.tool == "Weapon" and Flow.getWeapon() or Flow.getPickaxe()
@@ -4204,7 +4447,7 @@ local function bindFarm()
 		local job = Flow.pickQuestJob()
 		if not job then
 			Flow.questJob = nil
-			state.status = "当前图没有进行中任务"
+			state.status = "任务栏没有进行中任务"
 			return
 		end
 		if not Flow.sameQuestJob(Flow.questJob, job) then
@@ -4217,13 +4460,17 @@ local function bindFarm()
 			Flow.questJob = job
 		end
 		if job.kind == "mine" or job.kind == "hunt" then
-			if state.status == "待机" or state.status == "当前图没有进行中任务" then
+			if state.status == "待机" or state.status == "任务栏没有进行中任务" then
 				state.status = job.label
 			end
 			return
 		end
 		if job.kind == "talk" then
 			Flow.doQuestTalk(job)
+			return
+		end
+		if job.kind == "pickup" then
+			Flow.doQuestPickup(job)
 			return
 		end
 		if job.kind == "shop" then
@@ -4245,7 +4492,7 @@ local function bindFarm()
 		if Flow.sellFly or Flow.sellTalk then
 			return
 		end
-		if state.questOn and Flow.questJob and (Flow.questJob.kind == "talk" or Flow.questJob.kind == "shop") then
+		if state.questOn and Flow.questJob and (Flow.questJob.kind == "talk" or Flow.questJob.kind == "shop" or Flow.questJob.kind == "pickup") then
 			return
 		end
 		if not state.potOn then
@@ -5263,7 +5510,7 @@ local function bindUi()
 	local questHint = Instance.new("TextLabel")
 	questHint.BackgroundTransparency = 1
 	questHint.Font = Enum.Font.Gotham
-	questHint.Text = "只做当前地图已接的任务，主线优先。挖矿/指定矿石/杀怪会套用左边飞行和站位；不用先开自动挖矿或打怪。"
+	questHint.Text = "只做任务栏里正在进行的，按当前进度继续，不会重开主线。挖矿/指定矿石/杀怪套用左边飞行和站位。"
 	questHint.TextColor3 = C.dim
 	questHint.TextSize = 11
 	questHint.TextXAlignment = Enum.TextXAlignment.Left
