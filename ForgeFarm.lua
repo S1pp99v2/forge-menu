@@ -1,6 +1,6 @@
 --!nocheck
 --!nolint
-local FORGE_VERSION = "1.1.15"
+local FORGE_VERSION = "1.1.16"
 print("[Forge] boot " .. FORGE_VERSION)
 
 local function grab(name)
@@ -588,6 +588,15 @@ Flow.zhGear = {
 	["Grave Maker"] = "葬锤",
 	["Angelic Spear"] = "天使矛",
 	Scythe = "镰刀",
+	Ironhand = "铁拳",
+	["Crusader Sword"] = "十字军剑",
+	["Double Battle Axe"] = "双战斧",
+	["Straight Edge Katana"] = "直刃太刀",
+	["Long Sword"] = "长剑",
+	["Skull Crusher"] = "碎颅锤",
+	["Cultist Dagger"] = "邪教匕",
+	["Executioner's Greataxe"] = "处刑巨斧",
+	Naginata = "薙刀",
 	["Light Helmet"] = "轻盔",
 	["Light Chestplate"] = "轻胸甲",
 	["Light Leggings"] = "轻护腿",
@@ -691,6 +700,15 @@ Flow.gearClass = {
 	["Grave Maker"] = "Mace",
 	["Angelic Spear"] = "Spear",
 	Scythe = "GreatAxe",
+	Ironhand = "Gauntlet",
+	["Crusader Sword"] = "GreatSword",
+	["Double Battle Axe"] = "GreatAxe",
+	["Straight Edge Katana"] = "Katana",
+	["Long Sword"] = "GreatSword",
+	["Skull Crusher"] = "ColossalSword",
+	["Cultist Dagger"] = "Dagger",
+	["Executioner's Greataxe"] = "GreatAxe",
+	Naginata = "Spear",
 	["Light Helmet"] = "LightHelmet",
 	["Light Chestplate"] = "LightChestplate",
 	["Light Leggings"] = "LightLeggings",
@@ -782,6 +800,304 @@ function Flow.gearLabel(name)
 	return Flow.zhGear[name] or Flow.zhSell[name] or Flow.zh[name] or name
 end
 
+Flow.rockOres = {
+	Pebble = { "Stone", "Sand Stone", "Copper", "Iron", "Poopite" },
+	Rock = { "Sand Stone", "Copper", "Iron", "Tin", "Silver", "Poopite", "Bananite", "Cardboardite", "Mushroomite" },
+	Boulder = { "Copper", "Iron", "Tin", "Silver", "Gold", "Platinum", "Poopite", "Bananite", "Cardboardite", "Mushroomite", "Aite" },
+	["Basalt Rock"] = { "Silver", "Gold", "Platinum", "Cobalt", "Titanium", "Lapis Lazuli", "Eye Ore" },
+	["Basalt Core"] = { "Cobalt", "Titanium", "Lapis Lazuli", "Quartz", "Amethyst", "Topaz", "Diamond", "Sapphire", "Cuprite", "Emerald", "Eye Ore" },
+	["Basalt Vein"] = { "Quartz", "Amethyst", "Topaz", "Diamond", "Sapphire", "Cuprite", "Emerald", "Ruby", "Rivalite", "Uranium", "Mythril", "Eye Ore", "Lightite" },
+	["Volcanic Rock"] = { "Volcanic Rock", "Topaz", "Cuprite", "Rivalite", "Obsidian", "Eye Ore", "Fireite", "Magmaite", "Demonite", "Darkryte" },
+	["Earth Crystal"] = { "Blue Crystal", "Crimson Crystal", "Green Crystal", "Magenta Crystal", "Orange Crystal", "Rainbow Crystal", "Arcane Crystal" },
+	["Cyan Crystal"] = { "Blue Crystal", "Crimson Crystal", "Green Crystal", "Magenta Crystal", "Orange Crystal", "Rainbow Crystal", "Arcane Crystal" },
+	["Crimson Crystal"] = { "Blue Crystal", "Crimson Crystal", "Green Crystal", "Magenta Crystal", "Orange Crystal", "Rainbow Crystal", "Arcane Crystal" },
+	["Violet Crystal"] = { "Blue Crystal", "Crimson Crystal", "Green Crystal", "Magenta Crystal", "Orange Crystal", "Rainbow Crystal", "Arcane Crystal" },
+	["Light Crystal"] = { "Blue Crystal", "Crimson Crystal", "Green Crystal", "Magenta Crystal", "Orange Crystal", "Rainbow Crystal", "Arcane Crystal" },
+	["Icy Pebble"] = { "Tungsten", "Sulfur", "Pumice", "Graphite", "Aetherit", "Snowite" },
+	["Icy Rock"] = { "Tungsten", "Sulfur", "Pumice", "Graphite", "Aetherit", "Scheelite", "Larimar", "Neurotite", "Iceite", "Snowite" },
+	["Icy Boulder"] = { "Tungsten", "Sulfur", "Pumice", "Graphite", "Aetherit", "Scheelite", "Larimar", "Neurotite", "Frost Fossil", "Tide Carve", "Velchire", "Sanctis", "Iceite", "Snowite" },
+	["Small Ice Crystal"] = { "Aetherit", "Scheelite", "Larimar", "Neurotite", "Frost Fossil", "Tide Carve", "Velchire", "Sanctis", "Iceite", "Snowite", "Mistvein", "Lgarite", "Voidfractal", "Moltenfrost", "Crimsonite", "Suryafal" },
+	["Medium Ice Crystal"] = { "Frost Fossil", "Tide Carve", "Velchire", "Sanctis", "Iceite", "Snowite", "Mistvein", "Lgarite", "Voidfractal", "Moltenfrost", "Crimsonite", "Malachite", "Aqujade", "Cryptex", "Galestor", "Voidstar", "Suryafal" },
+	["Large Ice Crystal"] = { "Velchire", "Sanctis", "Iceite", "Snowite", "Mistvein", "Lgarite", "Voidfractal", "Moltenfrost", "Crimsonite", "Malachite", "Aqujade", "Cryptex", "Galestor", "Voidstar", "Etherealite", "Suryafal", "Gargantuan" },
+	["Floating Crystal"] = { "Velchire", "Sanctis", "Iceite", "Snowite", "Mistvein", "Lgarite", "Voidfractal", "Moltenfrost", "Crimsonite", "Malachite", "Aqujade", "Cryptex", "Galestor", "Voidstar", "Etherealite", "Suryafal", "Heavenite", "Gargantuan" },
+	["Small Red Crystal"] = { "Frost Fossil", "Tide Carve", "Velchire", "Mistvein", "Lgarite", "Voidfractal", "Moltenfrost", "Crimsonite", "Malachite", "Aqujade", "Cryptex", "Galestor", "Voidstar", "Etherealite", "Suryafal", "Frogite", "Moon Stone" },
+	["Medium Red Crystal"] = { "Frost Fossil", "Tide Carve", "Velchire", "Mistvein", "Lgarite", "Voidfractal", "Moltenfrost", "Crimsonite", "Malachite", "Aqujade", "Cryptex", "Galestor", "Voidstar", "Etherealite", "Suryafal", "Frogite", "Moon Stone", "Gulabite", "Coinite" },
+	["Large Red Crystal"] = { "Frost Fossil", "Tide Carve", "Velchire", "Iceite", "Snowite", "Mistvein", "Lgarite", "Voidfractal", "Moltenfrost", "Crimsonite", "Malachite", "Cryptex", "Galestor", "Voidstar", "Etherealite", "Suryafal", "Frogite", "Moon Stone", "Gulabite", "Coinite", "Duranite", "Evil Eye" },
+	["Heart Of The Island"] = { "Frost Fossil", "Tide Carve", "Velchire", "Mistvein", "Lgarite", "Voidfractal", "Moltenfrost", "Crimsonite", "Malachite", "Cryptex", "Galestor", "Voidstar", "Etherealite", "Suryafal", "Gargantuan", "Frogite", "Moon Stone", "Gulabite", "Coinite", "Duranite", "Evil Eye", "Stolen Heart", "Heart Of The Island" },
+	Iceberg = { "Mosasaursit" },
+	["Bamboo Pebble"] = { "Bamboo", "Root Spire", "Water Stone", "Earthite", "Rock Seed", "Shikanite" },
+	["Bamboo Rock"] = { "Root Spire", "Water Stone", "Earthite", "Melonite", "Wraith", "Tiger's Eye", "Duquack", "Onyx" },
+	["Bamboo Boulder"] = { "Water Stone", "Earthite", "Rock Seed", "Wraith", "Cyanite Jade", "Magit", "Duquack", "Onyx" },
+	["Hana Pebble"] = { "Rock Seed", "Wraith", "Aurelia-no-Ki", "Sakuranite", "Fruite", "Blue Gem Quill", "Duquack", "Lucky Cat", "Onyx" },
+	["Glowy Rock"] = { "Aurelia-no-Ki", "Sakuranite", "Heat Steel", "Sealed Curse", "Zenstone", "Azuryxite", "Duquack", "Lucky Cat", "Onyx" },
+	["Blossom Boulder"] = { "Heat Steel", "Sealed Curse", "Sun Stone", "Roosite", "Meteorite", "Heavenly Orb", "Duquack", "Lucky Cat", "Onyx" },
+	["Spirit Rock"] = { "Seedheart", "Viridite", "Aurelia-no-Ki", "Sakuranite", "Heat Steel", "Sealed Curse", "Zenstone", "Azuryxite", "Duquack", "Lucky Cat", "Onyx", "Ryuseki" },
+	["Soul Boulder"] = { "Seedheart", "Viridite", "Heat Steel", "Sealed Curse", "Sun Stone", "Roosite", "Meteorite", "Heavenly Orb", "Duquack", "Lucky Cat", "Onyx", "Ryuseki" },
+	["Sakura Crystal"] = { "Seedheart", "Viridite", "Ancienite", "Dorabell" },
+	["Thunder Core"] = { "Seedheart", "Viridite", "Ancienite", "Dorabell", "Kyomutite", "Takiseki", "Ryuseki", "Ceyite", "Marblite" },
+}
+
+Flow.traitZh = {
+	DamageBoost = "增伤",
+	NegativeHealthBoost = "掉血",
+	NegativeStaminaBoost = "掉体力",
+	NegativeMoveSpeed = "掉速",
+	CriticalChance = "暴击",
+	CriticalDamage = "暴伤",
+	Fire = "燃烧",
+	Explosion = "爆炸",
+	Ice = "冰冻",
+	Snow = "下雪",
+	Poison = "中毒",
+	LifeSteal = "吸血",
+	Blackhole = "黑洞",
+	AttackSpeedBoost = "攻速",
+	MoveSpeed = "移速",
+	BadSmell = "臭味",
+	AngelSmite = "天罚",
+	MoonBoost = "月能",
+	HealthBoost = "生命",
+	FlatHealthRegen = "回血",
+	Shield = "护盾",
+	Thorn = "反伤",
+	Berserker = "狂暴",
+	JumpBoost = "跳跃",
+	DashDistance = "冲刺距离",
+	DashIFrame = "冲刺无敌",
+	DashCooldown = "冲刺冷却",
+	LuckBoost = "幸运",
+	ExtraMineDrop = "多掉矿",
+	StaminaBoost = "体力",
+	Radioactive = "辐射",
+	ShadowPhantomStep = "幻步",
+	DemonBackfire = "反伤着火",
+}
+
+Flow.traitRank = {
+	Blackhole = 10,
+	DamageBoost = 9,
+	LifeSteal = 8,
+	CriticalChance = 8,
+	CriticalDamage = 7,
+	Explosion = 7,
+	Fire = 6,
+	Ice = 6,
+	AttackSpeedBoost = 6,
+	AngelSmite = 6,
+	Poison = 5,
+	MoonBoost = 5,
+	Snow = 4,
+	BadSmell = 3,
+}
+
+function Flow.ensureOreCache()
+	if Flow.oreCache then
+		return Flow.oreCache
+	end
+	local cache = {}
+	pcall(function()
+		local Ore = require(ReplicatedStorage.Shared.Data.Ore)
+		for _, v in ipairs(Ore) do
+			if type(v) == "table" and type(v.Name) == "string" then
+				local weapon, armor = false, false
+				local bits = {}
+				for _, tr in ipairs(v.Traits or {}) do
+					local wl = tr.Whitelist
+					local w, a = true, true
+					if type(wl) == "table" then
+						w, a = false, false
+						for _, x in ipairs(wl) do
+							if x == "Weapon" then
+								w = true
+							end
+							if x == "Armor" then
+								a = true
+							end
+						end
+					end
+					if w then
+						weapon = true
+					end
+					if a then
+						armor = true
+					end
+					if tr.Id then
+						bits[#bits + 1] = { id = tr.Id, weapon = w, armor = a }
+					end
+				end
+				local mult = tonumber(v.Multiplier) or 0
+				local old = cache[v.Name]
+				if not old or mult >= (old.mult or 0) then
+					cache[v.Name] = {
+						mult = mult,
+						weapon = weapon,
+						armor = armor,
+						traits = bits,
+						skip = mult <= 0,
+					}
+				end
+			end
+		end
+	end)
+	Flow.oreCache = cache
+	return cache
+end
+
+function Flow.oreInfo(name)
+	local cache = Flow.ensureOreCache()
+	return cache[name]
+		or {
+			mult = 0,
+			weapon = false,
+			armor = false,
+			traits = {},
+			skip = false,
+		}
+end
+
+function Flow.oreTraitText(name, want)
+	local bits = {}
+	for _, tr in ipairs(Flow.oreInfo(name).traits or {}) do
+		if want == "weapon" and not tr.weapon then
+		elseif want == "armor" and not tr.armor then
+		else
+			bits[#bits + 1] = Flow.traitZh[tr.id] or tr.id
+		end
+	end
+	if #bits == 0 then
+		return "无词条"
+	end
+	return table.concat(bits, "、")
+end
+
+function Flow.areaOreList(area)
+	local seen = {}
+	local out = {}
+	for _, rock in ipairs(area.rocks or {}) do
+		for _, ore in ipairs(Flow.rockOres[rock] or {}) do
+			if not seen[ore] then
+				seen[ore] = true
+				out[#out + 1] = ore
+			end
+		end
+	end
+	return out
+end
+
+function Flow.mapAreasOf(area)
+	for _, map in ipairs(Flow.guideMaps or {}) do
+		for _, a in ipairs(map.areas or {}) do
+			if a == area then
+				return map.areas
+			end
+		end
+	end
+	return { area }
+end
+
+function Flow.pickFiller(ores, except)
+	local best
+	local bestScore = -1
+	for _, name in ipairs(ores or {}) do
+		if name ~= except then
+			local info = Flow.oreInfo(name)
+			local mult = info.mult or 0
+			if not info.skip and mult > 0 then
+				local score = mult
+				if not info.weapon then
+					score = score + 100
+				end
+				if score > bestScore then
+					best = name
+					bestScore = score
+				end
+			end
+		end
+	end
+	return best
+end
+
+function Flow.pickTraitOre(ores, except)
+	local best
+	local bestScore = -1
+	for _, name in ipairs(ores or {}) do
+		if name ~= except then
+			local info = Flow.oreInfo(name)
+			if info.weapon and not info.skip then
+				local score = (info.mult or 0) * 0.1
+				for _, tr in ipairs(info.traits or {}) do
+					if tr.weapon then
+						score = score + (Flow.traitRank[tr.id] or 1)
+					end
+				end
+				if score > bestScore then
+					best = name
+					bestScore = score
+				end
+			end
+		end
+	end
+	return best
+end
+
+function Flow.mixForOre(area, oreName)
+	local ores = Flow.areaOreList(area)
+	local info = Flow.oreInfo(oreName)
+	local mult = info.mult or 0
+	if info.skip or mult <= 0 then
+		return { { oreName, 10 } }, "倍率是 0，别拿去锻。"
+	end
+	local label = Flow.sellLabel(oreName)
+	local multTxt = string.format("%.2fx", mult)
+	if info.weapon then
+		local filler = Flow.pickFiller(ores, oreName)
+		if filler then
+			return { { filler, 7 }, { oreName, 3 } },
+				label
+					.. " "
+					.. multTxt
+					.. "，武器词条："
+					.. Flow.oreTraitText(oreName, "weapon")
+					.. "。占三成："
+					.. Flow.sellLabel(filler)
+					.. " 7 颗铺倍率，"
+					.. label
+					.. " 3 颗吃满词条。"
+		end
+		return { { oreName, 10 } },
+			label .. " " .. multTxt .. "，武器词条：" .. Flow.oreTraitText(oreName, "weapon") .. "。本区没有别的矿铺倍率，整炉都用它。"
+	end
+	local trait = Flow.pickTraitOre(ores, oreName)
+	local borrowed = false
+	if not trait then
+		local wide = {}
+		for _, a in ipairs(Flow.mapAreasOf(area)) do
+			for _, ore in ipairs(Flow.areaOreList(a)) do
+				wide[#wide + 1] = ore
+			end
+		end
+		trait = Flow.pickTraitOre(wide, oreName)
+		borrowed = trait ~= nil
+	end
+	if trait then
+		local extra = borrowed and "本区没有武器词条矿，借用同图的 " .. Flow.sellLabel(trait) .. "。" or ""
+		return { { oreName, 7 }, { trait, 3 } },
+			label
+				.. " "
+				.. multTxt
+				.. "，"
+				.. (info.armor and ("护甲词条：" .. Flow.oreTraitText(oreName, "armor") .. "。武器当填料。") or "没有武器词条，当填料。")
+				.. extra
+				.. "配 "
+				.. Flow.sellLabel(trait)
+				.. "（"
+				.. Flow.oreTraitText(trait, "weapon")
+				.. "）吃词条。"
+	end
+	return { { oreName, 10 } },
+		label .. " " .. multTxt .. "，本区没有武器词条矿，整炉铺倍率。"
+end
+
 Flow.guideMaps = {
 	{
 		id = 1,
@@ -792,10 +1108,10 @@ Flow.guideMaps = {
 				stageName = "前期",
 				area = "铁谷 · 石子",
 				rocks = { "Pebble" },
-				tip = "石子掉石头、砂岩、铜铁和粪矿。点下面任意一把武器或一套护甲，看这炉要扔几颗。",
+				tip = "石子掉石头、砂岩、铜、铁、粪矿。点一种矿石，看它配每把武器各要几颗。",
 				mix = { { "Iron", 7 }, { "Poopite", 3 } },
 				note = "铁铺伤害，粪矿给臭味圈。词条矿至少要占三成，所以 10 颗里粪矿固定 3 颗。",
-				weapons = { "Dagger", "Falchion Knife", "Gladius", "Falchion", "Cutlass" },
+				weapons = { "Dagger", "Falchion Knife", "Gladius Dagger", "Gladius", "Falchion", "Cutlass", "Ironhand", "Uchigatana", "Crusader Sword", "Great Sword", "Hammer" },
 				armorSets = {
 					{ title = "轻甲一套", items = { "Light Helmet", "Light Chestplate", "Light Leggings" } },
 				},
@@ -805,10 +1121,10 @@ Flow.guideMaps = {
 				stageName = "中期",
 				area = "铁谷 · 岩石",
 				rocks = { "Rock" },
-				tip = "岩石出银、锡、香蕉矿。这层几乎没进攻词条，用香蕉矿铺倍率。",
-				mix = { { "Bananite", 7 }, { "Silver", 3 } },
-				note = "香蕉矿 7 颗铺倍率，银 3 颗凑数。",
-				weapons = { "Dagger", "Gladius", "Falchion", "Cutlass", "Great Sword" },
+				tip = "岩石出银、锡、香蕉矿、纸板、蘑菇矿。点一种矿石看它配每把武器。",
+				mix = { { "Bananite", 7 }, { "Poopite", 3 } },
+				note = "香蕉矿 7 颗铺倍率，粪矿 3 颗吃满臭味。",
+				weapons = { "Dagger", "Falchion Knife", "Gladius Dagger", "Gladius", "Falchion", "Cutlass", "Ironhand", "Uchigatana", "Crusader Sword", "Great Sword", "Hammer" },
 				armorSets = {
 					{ title = "中甲一套", items = { "Medium Helmet", "Medium Chestplate", "Medium Leggings" } },
 				},
@@ -818,10 +1134,10 @@ Flow.guideMaps = {
 				stageName = "后期",
 				area = "铁谷 · 巨石",
 				rocks = { "Boulder" },
-				tip = "巨石出金、铂、艾特。图1毕业。幸运方块的菲奇矿倍率是 0，别拿去锻。",
-				mix = { { "Gold", 7 }, { "Poopite", 3 } },
-				note = "金 7 颗铺面板，粪矿 3 颗吃满臭味。",
-				weapons = { "Falchion", "Cutlass", "Uchigatana", "Great Sword", "Hammer" },
+				tip = "巨石出金、铂、艾特。点一种矿石看它配每把武器。菲奇矿倍率是 0，别锻。",
+				mix = { { "Aite", 7 }, { "Poopite", 3 } },
+				note = "艾特 7 颗铺面板，粪矿 3 颗吃满臭味。",
+				weapons = { "Dagger", "Falchion Knife", "Gladius", "Falchion", "Cutlass", "Ironhand", "Uchigatana", "Crusader Sword", "Great Sword", "Hammer" },
 				armorSets = {
 					{ title = "骑士重甲一套", items = { "Knight Helmet", "Knight Chestplate", "Knight Leggings" } },
 				},
@@ -837,10 +1153,10 @@ Flow.guideMaps = {
 				stageName = "前期",
 				area = "遗忘王国 · 玄武岩口",
 				rocks = { "Basalt Rock" },
-				tip = "玄武岩出眼矿、钴钛、青金石。眼矿是图2第一根进攻词条。",
-				mix = { { "Cobalt", 7 }, { "Eye Ore", 3 } },
-				note = "钴 7 颗铺倍率，眼矿 3 颗：生命少一点、增伤多一点。",
-				weapons = { "Hook", "Cutlass", "Rapier", "Tachi", "Great Sword" },
+				tip = "玄武岩出银金铂、钴钛、青金石、眼矿。点一种矿石看它配每把武器。",
+				mix = { { "Titanium", 7 }, { "Eye Ore", 3 } },
+				note = "钛 7 颗铺倍率，眼矿 3 颗：生命少一点、增伤多一点。",
+				weapons = { "Hook", "Cutlass", "Rapier", "Chaos", "Tachi", "Straight Edge Katana", "Dark Knight's Greatsword", "Long Sword", "Scythe", "Skull Crusher", "Dragon Slayer" },
 				armorSets = {
 					{ title = "暗骑重甲一套", items = { "Dark Knight Helmet", "Dark Knight Chestplate", "Dark Knight Leggings" } },
 				},
@@ -850,12 +1166,12 @@ Flow.guideMaps = {
 				stageName = "中期",
 				area = "遗忘王国 · 岩脉",
 				rocks = { "Basalt Core", "Basalt Vein" },
-				tip = "岩脉出对决矿、秘银、光矿。武器走暴击，护甲走生命和移速。",
-				mix = { { "Emerald", 7 }, { "Rivalite", 3 } },
-				note = "绿宝石 7 颗铺倍率，对决矿 3 颗上暴击。",
+				tip = "岩脉出宝石、对决矿、秘银、光矿。点一种矿石看它配每把武器。",
+				mix = { { "Ruby", 7 }, { "Rivalite", 3 } },
+				note = "红宝石 7 颗铺倍率，对决矿 3 颗上暴击。",
 				armorMix = { { "Emerald", 4 }, { "Mythril", 3 }, { "Lightite", 3 } },
 				armorNote = "绿宝石 4 颗铺倍率，秘银 3 颗生命，光矿 3 颗移速。",
-				weapons = { "Cutlass", "Chaos", "Tachi", "Dark Knight's Greatsword", "Dragon Slayer" },
+				weapons = { "Hook", "Cutlass", "Rapier", "Chaos", "Tachi", "Straight Edge Katana", "Dark Knight's Greatsword", "Long Sword", "Scythe", "Skull Crusher", "Dragon Slayer" },
 				armorSets = {
 					{ title = "暗骑重甲一套", items = { "Dark Knight Helmet", "Dark Knight Chestplate", "Dark Knight Leggings" } },
 					{ title = "武士中甲一套", items = { "Samurai Helmet", "Samurai Chestplate", "Samurai Leggings" } },
@@ -866,12 +1182,12 @@ Flow.guideMaps = {
 				stageName = "后期",
 				area = "火山深处 · 哥布林洞",
 				rocks = { "Volcanic Rock", "Earth Crystal", "Cyan Crystal", "Crimson Crystal", "Violet Crystal", "Light Crystal" },
-				tip = "火山出火矿、岩浆矿、恶魔矿、暗晶。奥术水晶没有词条，只拿来凑颗数。",
+				tip = "火山出火矿、岩浆矿、恶魔矿、暗晶和七色水晶。点一种矿石看它配每把武器。",
 				mix = { { "Arcane Crystal", 4 }, { "Magmaite", 3 }, { "Fireite", 3 } },
 				note = "奥术水晶 4 颗铺倍率，岩浆矿 3 颗爆炸，火矿 3 颗燃烧。",
 				armorMix = { { "Obsidian", 4 }, { "Demonite", 3 }, { "Darkryte", 3 } },
 				armorNote = "黑曜石 4 颗生命，恶魔矿 3 颗反伤着火，暗晶 3 颗幻步。",
-				weapons = { "Chaos", "Hell Slayer", "Dark Knight's Greatsword", "Scythe", "Dragon Slayer" },
+				weapons = { "Hook", "Cutlass", "Chaos", "Tachi", "Straight Edge Katana", "Dark Knight's Greatsword", "Scythe", "Skull Crusher", "Dragon Slayer" },
 				armorSets = {
 					{ title = "暗骑重甲一套", items = { "Dark Knight Helmet", "Dark Knight Chestplate", "Dark Knight Leggings" } },
 				},
@@ -887,12 +1203,12 @@ Flow.guideMaps = {
 				stageName = "前期",
 				area = "霜原 · 冰石",
 				rocks = { "Icy Pebble", "Icy Rock", "Icy Boulder" },
-				tip = "冰石出钨、石墨、以太矿、雪矿、冰矿。石墨是图3第一件盾。",
+				tip = "冰石出钨、石墨、以太、雪矿、冰矿。点一种矿石看它配每把武器。",
 				mix = { { "Tungsten", 4 }, { "Snowite", 3 }, { "Aetherit", 3 } },
 				note = "钨 4 颗铺倍率，雪矿 3 颗下雪，以太矿 3 颗攻速。",
 				armorMix = { { "Tungsten", 4 }, { "Graphite", 3 }, { "Aetherit", 3 } },
 				armorNote = "钨 4 颗，石墨 3 颗上盾，以太矿 3 颗移速。",
-				weapons = { "Crystalized Broadsword", "Hell Slayer", "Hook Blade", "Angelic Spear", "Colossal Gemblade" },
+				weapons = { "Cultist Dagger", "Crystalized Broadsword", "Hell Slayer", "Hook Blade", "Grave Maker", "Angelic Spear", "Executioner's Greataxe", "Colossal Gemblade", "Colossal Terrorblade" },
 				armorSets = {
 					{ title = "鸦骑士一套", items = { "Raven's Helmet", "Raven's Chestplate", "Raven's Leggings" } },
 				},
@@ -902,12 +1218,12 @@ Flow.guideMaps = {
 				stageName = "中期",
 				area = "山巅 · 冰晶",
 				rocks = { "Small Ice Crystal", "Medium Ice Crystal", "Large Ice Crystal", "Floating Crystal" },
-				tip = "山巅出绯红矿、虚空星、空灵矿、巨兽矿。暴击从虚空星开始。",
+				tip = "山巅出绯红矿、虚空星、空灵矿、巨兽矿。点一种矿石看它配每把武器。",
 				mix = { { "Gargantuan", 4 }, { "Voidstar", 3 }, { "Crimsonite", 3 } },
 				note = "巨兽 4 颗爆炸着火，虚空星 3 颗暴击，绯红矿 3 颗增伤。",
 				armorMix = { { "Etherealite", 4 }, { "Sanctis", 3 }, { "Velchire", 3 } },
 				armorNote = "空灵矿 4 颗生命，圣域 3 颗体力，魔翼 3 颗移速。",
-				weapons = { "Hell Slayer", "Crystalized Broadsword", "Grave Maker", "Angelic Spear", "Colossal Gemblade" },
+				weapons = { "Cultist Dagger", "Crystalized Broadsword", "Hell Slayer", "Hook Blade", "Grave Maker", "Angelic Spear", "Executioner's Greataxe", "Colossal Gemblade", "Colossal Terrorblade" },
 				armorSets = {
 					{ title = "鸦骑士一套", items = { "Raven's Helmet", "Raven's Chestplate", "Raven's Leggings" } },
 				},
@@ -917,12 +1233,12 @@ Flow.guideMaps = {
 				stageName = "后期",
 				area = "鸦窟 · 冰山",
 				rocks = { "Small Red Crystal", "Medium Red Crystal", "Large Red Crystal", "Heart Of The Island", "Iceberg" },
-				tip = "红晶和岛之心出失心、杜兰。冰山只掉沧龙矿，肉但极慢。",
+				tip = "红晶和岛之心出失心、杜兰。冰山只掉沧龙矿。点一种矿石看它配每把武器。",
 				mix = { { "Gargantuan", 7 }, { "Stolen Heart", 3 } },
 				note = "巨兽 7 颗铺倍率，失心 3 颗吸血。",
 				armorMix = { { "Duranite", 4 }, { "Heart Of The Island", 3 }, { "Etherealite", 3 } },
 				armorNote = "杜兰 4 颗盾，岛之心 3 颗狂暴，空灵矿 3 颗生命。",
-				weapons = { "Hell Slayer", "Crystalized Broadsword", "Grave Maker", "Colossal Gemblade", "Colossal Terrorblade" },
+				weapons = { "Cultist Dagger", "Crystalized Broadsword", "Hell Slayer", "Grave Maker", "Angelic Spear", "Executioner's Greataxe", "Colossal Gemblade", "Colossal Terrorblade" },
 				armorSets = {
 					{ title = "鸦骑士一套", items = { "Raven's Helmet", "Raven's Chestplate", "Raven's Leggings" } },
 				},
@@ -938,12 +1254,12 @@ Flow.guideMaps = {
 				stageName = "前期",
 				area = "竹洞",
 				rocks = { "Bamboo Pebble", "Bamboo Rock", "Bamboo Boulder" },
-				tip = "竹洞出缟玛瑙、虎眼石、地矿、青玉。图4第一根暴击矿是缟玛瑙。",
+				tip = "竹洞出缟玛瑙、虎眼石、地矿、青玉。点一种矿石看它配每把武器。",
 				mix = { { "Onyx", 4 }, { "Tiger's Eye", 3 }, { "Magit", 3 } },
 				note = "缟玛瑙 4 颗暴击，虎眼 3 颗攻速增伤（掉血），魔力矿 3 颗凑倍率。",
 				armorMix = { { "Cyanite Jade", 4 }, { "Earthite", 3 }, { "Duquack", 3 } },
 				armorNote = "青玉 4 颗生命，地矿 3 颗生命，鸭矿 3 颗跳跃闪避。",
-				weapons = { "Kunai", "Tanto", "Chokuto", "Uchigatana", "Tachi" },
+				weapons = { "Kunai", "Tanto", "Chokuto", "Uchigatana", "Tachi", "Kurokiba-gatana", "Dragon Blade", "Naginata", "Colossal Terrorblade" },
 				armorSets = {
 					{ title = "忍者轻甲一套", items = { "Ninja's Headgear", "Ninja's Armor", "Ninja's Leggings" } },
 					{ title = "武士中甲一套", items = { "Samurai Helmet", "Samurai Chestplate", "Samurai Leggings" } },
@@ -954,12 +1270,12 @@ Flow.guideMaps = {
 				stageName = "中期",
 				area = "圣树",
 				rocks = { "Hana Pebble", "Glowy Rock", "Blossom Boulder" },
-				tip = "圣树出封咒、日石、招财猫、天球、陨石。点进去看每件要几颗。心矿是另一条合成线，主配方不用它。",
+				tip = "圣树出封咒、日石、招财猫、天球、陨石。点一种矿石看它配每把武器。心矿是另一条合成线。",
 				mix = { { "Sun Stone", 4 }, { "Sealed Curse", 3 }, { "Onyx", 3 } },
 				note = "日石 4 颗火，封咒 3 颗增伤（掉血掉速），缟玛瑙 3 颗暴击。",
 				armorMix = { { "Heavenly Orb", 4 }, { "Lucky Cat", 3 }, { "Duquack", 3 } },
 				armorNote = "天球 4 颗盾和回血，招财猫 3 颗幸运多掉，鸭矿 3 颗机动。",
-				weapons = { "Tanto", "Uchigatana", "Kurokiba-gatana", "Dragon Blade", "Colossal Terrorblade" },
+				weapons = { "Kunai", "Tanto", "Chokuto", "Uchigatana", "Kurokiba-gatana", "Dragon Blade", "Naginata", "Colossal Terrorblade", "Colossal Gemblade" },
 				armorSets = {
 					{ title = "武士中甲一套", items = { "Samurai Helmet", "Samurai Chestplate", "Samurai Leggings" } },
 					{ title = "将军重甲一套", items = { "Shogun's Helmet", "Shogun's Chestplate", "Shogun's Leggings" } },
@@ -970,12 +1286,12 @@ Flow.guideMaps = {
 				stageName = "后期",
 				area = "灵窟 · 虚空",
 				rocks = { "Spirit Rock", "Soul Boulder", "Sakura Crystal", "Thunder Core" },
-				tip = "灵岩要灵镐。阴、阳打灵窟怪。九尾矿打阿修罗化身。星系矿在虚空合成。",
+				tip = "灵岩要灵镐。点一种矿石看它配每把武器。九尾打阿修罗，星系矿在虚空合成。",
 				mix = { { "Galaxite", 7 }, { "Kyubite", 3 } },
 				note = "星系矿 7 颗黑洞暴击，九尾 3 颗火。没有星系矿就改用阴阳 3 颗 + 陨石 3 颗 + 日石 4 颗。",
 				armorMix = { { "Galaxite", 7 }, { "Sentira", 3 } },
 				armorNote = "星系矿 7 颗盾和回血，感知矿 3 颗再叠盾和反伤。",
-				weapons = { "Tanto", "Kurokiba-gatana", "Dragon Blade", "Colossal Terrorblade", "Colossal Gemblade" },
+				weapons = { "Kunai", "Tanto", "Chokuto", "Uchigatana", "Kurokiba-gatana", "Dragon Blade", "Naginata", "Colossal Terrorblade", "Colossal Gemblade" },
 				armorSets = {
 					{ title = "将军重甲一套", items = { "Shogun's Helmet", "Shogun's Chestplate", "Shogun's Leggings" } },
 					{ title = "忍者轻甲一套", items = { "Ninja's Headgear", "Ninja's Armor", "Ninja's Leggings" } },
@@ -4394,6 +4710,9 @@ local function bindUi()
 		row.Parent = guideOverlay
 		local lay = Instance.new("UIListLayout")
 		lay.FillDirection = Enum.FillDirection.Horizontal
+		pcall(function()
+			lay.Wraps = true
+		end)
 		lay.Padding = UDim.new(0, 6)
 		lay.SortOrder = Enum.SortOrder.LayoutOrder
 		lay.Parent = row
@@ -4491,11 +4810,12 @@ local function bindUi()
 		return false
 	end
 
-	local function clickWeapon(area, weaponName)
+	local function clickWeapon(area, weaponName, mix)
+		mix = mix or area.mix
 		local cls = Flow.gearClass[weaponName] or "StraightSword"
 		local lock = Flow.classLock[cls] or 9
 		local total = Flow.forgeTotal(lock)
-		local counts = Flow.mixCounts(area.mix, total)
+		local counts = Flow.mixCounts(mix, total)
 		local look = counts[1] and counts[1][1]
 		local clsName = Flow.classZh[cls] or cls
 		local body = table.concat({
@@ -4511,8 +4831,50 @@ local function bindUi()
 			counts = counts,
 			lookOre = look,
 			gears = { { weaponName, look } },
-			craft = area.craft and mixHasOre(area.mix, area.craft.dest) and area.craft or nil,
-			craft2 = area.craft2 and mixHasOre(area.mix, area.craft2.dest) and area.craft2 or nil,
+			craft = area.craft and mixHasOre(mix, area.craft.dest) and area.craft or nil,
+			craft2 = area.craft2 and mixHasOre(mix, area.craft2.dest) and area.craft2 or nil,
+		})
+	end
+
+	local function clickOre(area, oreName)
+		local mix, reason = Flow.mixForOre(area, oreName)
+		local info = Flow.oreInfo(oreName)
+		if info.skip or (info.mult or 0) <= 0 then
+			openGuideDetail({
+				title = Flow.sellLabel(oreName) .. " · 0x",
+				body = reason,
+				lookOre = oreName,
+			})
+			return
+		end
+		local lines = {}
+		for _, weaponName in ipairs(area.weapons or {}) do
+			local cls = Flow.gearClass[weaponName] or "StraightSword"
+			local lock = Flow.classLock[cls] or 9
+			local total = Flow.forgeTotal(lock)
+			local counts = Flow.mixCounts(mix, total)
+			lines[#lines + 1] = {
+				text = Flow.gearLabel(weaponName)
+					.. "（"
+					.. (Flow.classZh[cls] or cls)
+					.. "，锁定 "
+					.. tostring(lock)
+					.. " 颗）这一炉 "
+					.. tostring(total)
+					.. " 颗："
+					.. Flow.mixLine(counts),
+				counts = counts,
+				gear = weaponName,
+			}
+		end
+		openGuideDetail({
+			title = Flow.sellLabel(oreName) .. " · " .. string.format("%.2fx", info.mult or 0),
+			body = reason .. "\n下面是本区每把武器按锁定加到对应总数。",
+			counts = Flow.mixCounts(mix, 10),
+			lookOre = oreName,
+			lines = lines,
+			craft = area.craft and mixHasOre(mix, area.craft.dest) and area.craft or nil,
+			craft2 = area.craft2 and mixHasOre(mix, area.craft2.dest) and area.craft2 or nil,
 		})
 	end
 
@@ -4574,7 +4936,7 @@ local function bindUi()
 	local guideHint = Instance.new("TextLabel")
 	guideHint.BackgroundTransparency = 1
 	guideHint.Font = Enum.Font.Gotham
-	guideHint.Text = "点武器或整套护甲，看这一炉要几颗配几颗。词条矿至少占三成才满。当前地图已展开。"
+	guideHint.Text = "点本区任意一种矿石，看它配每把武器各要几颗。词条矿至少占三成才满。当前地图已展开。"
 	guideHint.TextColor3 = C.dim
 	guideHint.TextSize = 11
 	guideHint.TextXAlignment = Enum.TextXAlignment.Left
@@ -4694,6 +5056,7 @@ local function bindUi()
 		rockRow.Parent = card
 		local rockLay = Instance.new("UIListLayout")
 		rockLay.FillDirection = Enum.FillDirection.Horizontal
+		rockLay.Wraps = true
 		rockLay.Padding = UDim.new(0, 6)
 		rockLay.SortOrder = Enum.SortOrder.LayoutOrder
 		rockLay.Parent = rockRow
@@ -4701,25 +5064,63 @@ local function bindUi()
 			mkGuideCell(rockRow, "Rock", rockName, Flow.rockLabel(rockName), i)
 		end
 
+		local oreLab = Instance.new("TextLabel")
+		oreLab.BackgroundTransparency = 1
+		oreLab.Font = Enum.Font.Gotham
+		oreLab.Text = "本区矿石（点一种看它配每把武器）"
+		oreLab.TextColor3 = C.dim
+		oreLab.TextSize = 11
+		oreLab.TextXAlignment = Enum.TextXAlignment.Left
+		oreLab.Size = UDim2.new(1, 0, 0, 14)
+		oreLab.LayoutOrder = 5
+		oreLab.Parent = card
+		local oreRow = Instance.new("Frame")
+		oreRow.BackgroundTransparency = 1
+		oreRow.AutomaticSize = Enum.AutomaticSize.Y
+		oreRow.Size = UDim2.new(1, 0, 0, 0)
+		oreRow.LayoutOrder = 6
+		oreRow.Parent = card
+		local oreLay = Instance.new("UIListLayout")
+		oreLay.FillDirection = Enum.FillDirection.Horizontal
+		oreLay.Wraps = true
+		oreLay.Padding = UDim.new(0, 6)
+		oreLay.SortOrder = Enum.SortOrder.LayoutOrder
+		oreLay.Parent = oreRow
+		for i, oreName in ipairs(Flow.areaOreList(area)) do
+			local info = Flow.oreInfo(oreName)
+			local tag = ""
+			if info.skip or (info.mult or 0) <= 0 then
+				tag = " 勿"
+			elseif info.weapon then
+				tag = " 词"
+			elseif info.armor then
+				tag = " 甲"
+			end
+			mkGuideCell(oreRow, "Ore", oreName, Flow.sellLabel(oreName) .. tag, i, oreName, function()
+				clickOre(area, oreName)
+			end)
+		end
+
 		local lookOre = area.mix and area.mix[1] and area.mix[1][1]
 		local wepLab = Instance.new("TextLabel")
 		wepLab.BackgroundTransparency = 1
 		wepLab.Font = Enum.Font.Gotham
-		wepLab.Text = "武器（点进去看几颗配几颗）"
+		wepLab.Text = "推荐套（点武器看推荐配法）"
 		wepLab.TextColor3 = C.dim
 		wepLab.TextSize = 11
 		wepLab.TextXAlignment = Enum.TextXAlignment.Left
 		wepLab.Size = UDim2.new(1, 0, 0, 14)
-		wepLab.LayoutOrder = 5
+		wepLab.LayoutOrder = 7
 		wepLab.Parent = card
 		local wepRow = Instance.new("Frame")
 		wepRow.BackgroundTransparency = 1
 		wepRow.AutomaticSize = Enum.AutomaticSize.Y
 		wepRow.Size = UDim2.new(1, 0, 0, 0)
-		wepRow.LayoutOrder = 6
+		wepRow.LayoutOrder = 8
 		wepRow.Parent = card
 		local wepLay = Instance.new("UIListLayout")
 		wepLay.FillDirection = Enum.FillDirection.Horizontal
+		wepLay.Wraps = true
 		wepLay.Padding = UDim.new(0, 6)
 		wepLay.SortOrder = Enum.SortOrder.LayoutOrder
 		wepLay.Parent = wepRow
@@ -4737,7 +5138,7 @@ local function bindUi()
 		armLab.TextSize = 11
 		armLab.TextXAlignment = Enum.TextXAlignment.Left
 		armLab.Size = UDim2.new(1, 0, 0, 14)
-		armLab.LayoutOrder = 7
+		armLab.LayoutOrder = 9
 		armLab.Parent = card
 
 		for si, set in ipairs(area.armorSets or {}) do
@@ -4748,7 +5149,7 @@ local function bindUi()
 			setBtn.AutoButtonColor = true
 			setBtn.AutomaticSize = Enum.AutomaticSize.Y
 			setBtn.Size = UDim2.new(1, 0, 0, 0)
-			setBtn.LayoutOrder = 8 + si
+			setBtn.LayoutOrder = 10 + si
 			setBtn.Parent = card
 			corner(setBtn, 6)
 			local setPad = Instance.new("UIPadding")
@@ -4793,6 +5194,7 @@ local function bindUi()
 		return card
 	end
 
+	Flow.ensureOreCache()
 	for i, map in ipairs(Flow.guideMaps) do
 		local wrap = Instance.new("Frame")
 		wrap.BackgroundTransparency = 1
