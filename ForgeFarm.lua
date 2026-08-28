@@ -1,6 +1,6 @@
 --!nocheck
 --!nolint
-local FORGE_VERSION = "1.1.23"
+local FORGE_VERSION = "1.1.25"
 print("[Forge] boot " .. FORGE_VERSION)
 
 local function grab(name)
@@ -154,6 +154,8 @@ local state = {
 	huntHeight = 12,
 	huntSingle = false,
 	selected = {},
+	oreKeep = {},
+	openRock = nil,
 	huntSel = {},
 	potSel = {},
 	sellSel = {},
@@ -168,6 +170,7 @@ local state = {
 
 local Flow = {
 	target = nil,
+	skipRocks = {},
 	questJob = nil,
 	questTalkAt = 0,
 	_trackedQuest = nil,
@@ -288,6 +291,23 @@ function Flow.applyCfg(cfg)
 			end
 		end
 	end
+	if type(cfg.oreKeep) == "table" then
+		state.oreKeep = {}
+		for rock, list in pairs(cfg.oreKeep) do
+			if type(rock) == "string" and type(list) == "table" then
+				state.oreKeep[rock] = {}
+				for key, val in pairs(list) do
+					local ore = type(val) == "string" and val or (val == true and type(key) == "string" and key)
+					if type(ore) == "string" and ore ~= "" then
+						state.oreKeep[rock][ore] = true
+					end
+				end
+				if not next(state.oreKeep[rock]) then
+					state.oreKeep[rock] = nil
+				end
+			end
+		end
+	end
 end
 
 function Flow.loadCfg()
@@ -324,6 +344,21 @@ function Flow.dumpCfg()
 		end
 	end
 	table.sort(sel)
+	local oreKeep = {}
+	for rock, set in pairs(state.oreKeep) do
+		if type(set) == "table" then
+			local list = {}
+			for ore, on in pairs(set) do
+				if on then
+					list[#list + 1] = ore
+				end
+			end
+			if #list > 0 then
+				table.sort(list)
+				oreKeep[rock] = list
+			end
+		end
+	end
 	local huntSel = {}
 	for name, on in pairs(state.huntSel) do
 		if on then
@@ -354,6 +389,7 @@ function Flow.dumpCfg()
 		huntHeight = state.huntHeight,
 		huntSingle = state.huntSingle == true,
 		selected = sel,
+		oreKeep = oreKeep,
 		huntSel = huntSel,
 		potSel = potSel,
 		sellSel = sellSel,
@@ -1656,6 +1692,65 @@ function Flow.bestRockForOre(ore)
 	return fallback, fallbackP
 end
 
+function Flow.rocksForOre(ore)
+	local here = Flow.placeMap[game.PlaceId]
+	local localRocks = Flow.mapRockSet(here)
+	local set = {}
+	local function canMine(rock)
+		if type(Flow.canMineType) ~= "function" then
+			return true
+		end
+		return Flow.canMineType(rock)
+	end
+	for rock in pairs(Flow.rockOres or {}) do
+		if rock ~= "Lucky Block" and Flow.rockOreChance(rock, ore) > 0 then
+			if not next(localRocks) or localRocks[rock] then
+				if canMine(rock) then
+					set[rock] = true
+				end
+			end
+		end
+	end
+	if next(set) then
+		return set
+	end
+	local best = Flow.bestRockForOre(ore)
+	if best then
+		return { [best] = true }
+	end
+	return set
+end
+
+function Flow.oreKeepCount(rock)
+	local keep = rock and state.oreKeep[rock]
+	if type(keep) ~= "table" then
+		return 0
+	end
+	local n = 0
+	for _, on in pairs(keep) do
+		if on then
+			n = n + 1
+		end
+	end
+	return n
+end
+
+function Flow.toggleOreKeep(rock, ore)
+	if type(rock) ~= "string" or type(ore) ~= "string" or ore == "" then
+		return
+	end
+	state.oreKeep[rock] = state.oreKeep[rock] or {}
+	if state.oreKeep[rock][ore] then
+		state.oreKeep[rock][ore] = nil
+	else
+		state.oreKeep[rock][ore] = true
+		state.selected[rock] = true
+	end
+	if not next(state.oreKeep[rock]) then
+		state.oreKeep[rock] = nil
+	end
+end
+
 function Flow.numVal(v)
 	if type(v) == "number" then
 		return v
@@ -1711,11 +1806,42 @@ function Flow.huntingNow()
 	return state.huntOn == true
 end
 
+function Flow.anyRockSelected()
+	for _, on in pairs(state.selected) do
+		if on then
+			return true
+		end
+	end
+	return false
+end
+
 function Flow.wantRock(name)
 	if state.questOn and Flow.questJob and Flow.questJob.kind == "mine" then
 		return Flow.questJob.rocks and Flow.questJob.rocks[name] == true
 	end
+	if not Flow.anyRockSelected() then
+		if name == "Lucky Block" then
+			return false
+		end
+		local here = Flow.placeMap[game.PlaceId]
+		return Flow.mapRockSet(here)[name] == true
+	end
 	return state.selected[name] == true
+end
+
+function Flow.keepOresFor(rock)
+	if state.questOn and Flow.questJob and Flow.questJob.kind == "mine" then
+		local keep = Flow.questJob.keepOres
+		if type(keep) == "table" and next(keep) then
+			return keep
+		end
+		return nil
+	end
+	local keep = rock and state.oreKeep[rock]
+	if type(keep) == "table" and next(keep) then
+		return keep
+	end
+	return nil
 end
 
 function Flow.wantMob(kind)
@@ -3348,6 +3474,9 @@ local function bindFarm()
 		if not Flow.wantRock(model.Name) then
 			return false
 		end
+		if type(Flow.shouldSkipRock) == "function" and Flow.shouldSkipRock(model) then
+			return false
+		end
 		local hp = tonumber(model:GetAttribute("Health")) or 0
 		return hp > 0
 	end
@@ -3553,12 +3682,21 @@ local function bindFarm()
 		local best = nil
 		local bestD = nil
 		local blocked = 0
+		local now = os.clock()
+		for model, t in pairs(Flow.skipRocks) do
+			if not (model and model.Parent) or type(t) ~= "number" or now - t > 20 then
+				Flow.skipRocks[model] = nil
+			end
+		end
 		Flow.eachRock(function(model)
 			if not Flow.wantRock(model.Name) then
 				return
 			end
 			local hp = tonumber(model:GetAttribute("Health")) or 0
 			if hp <= 0 then
+				return
+			end
+			if Flow.shouldSkipRock(model) then
 				return
 			end
 			if not Flow.canMineType(model.Name) then
@@ -3590,7 +3728,7 @@ local function bindFarm()
 	function Flow.countReady()
 		local n = 0
 		Flow.eachRock(function(model)
-			if Flow.wantRock(model.Name) and (tonumber(model:GetAttribute("Health")) or 0) > 0 then
+			if Flow.wantRock(model.Name) and (tonumber(model:GetAttribute("Health")) or 0) > 0 and not Flow.shouldSkipRock(model) then
 				n = n + 1
 			end
 		end)
@@ -3601,12 +3739,70 @@ local function bindFarm()
 		if state.questOn and Flow.questJob and Flow.questJob.kind == "mine" then
 			return Flow.questJob.rocks and next(Flow.questJob.rocks) ~= nil
 		end
-		for _, on in pairs(state.selected) do
-			if on then
-				return true
+		return true
+	end
+
+	function Flow.rockDrops(model)
+		local found = {}
+		local function add(name)
+			if type(name) == "string" then
+				name = (string.match(name, "^%s*(.-)%s*$")) or name
+				if name ~= "" and name ~= "Ore" then
+					found[name] = true
+				end
 			end
 		end
-		return false
+		if not model then
+			return found
+		end
+		add(model:GetAttribute("Ore"))
+		add(model:GetAttribute("DropOre"))
+		local ores = model:GetAttribute("Ores")
+		if type(ores) == "string" then
+			for part in string.gmatch(ores, "[^,;/]+") do
+				add(part)
+			end
+		end
+		for _, child in ipairs(model:GetChildren()) do
+			if child.Name == "Ore" then
+				add(child:GetAttribute("Ore"))
+			end
+		end
+		for _, d in ipairs(model:GetDescendants()) do
+			if d.Name == "Ore" or (d:IsA("Model") and d:GetAttribute("Ore")) then
+				add(d:GetAttribute("Ore"))
+			end
+		end
+		return found
+	end
+
+	function Flow.shouldSkipRock(model)
+		if not model then
+			return false
+		end
+		if Flow.skipRocks[model] then
+			return true
+		end
+		local keep = Flow.keepOresFor(model.Name)
+		if not keep then
+			return false
+		end
+		local drops = Flow.rockDrops(model)
+		if not next(drops) then
+			return false
+		end
+		for ore in pairs(keep) do
+			if drops[ore] then
+				return false
+			end
+		end
+		return true
+	end
+
+	function Flow.markSkip(model)
+		if model then
+			Flow.skipRocks[model] = os.clock()
+		end
 	end
 
 	function Flow.lookCF(pos, look)
@@ -3797,6 +3993,22 @@ local function bindFarm()
 			Flow.arriveAt = 0
 			state.status = "先选石头"
 			return
+		end
+		if Flow.target and Flow.shouldSkipRock(Flow.target) then
+			local rockName = Flow.target.Name
+			local keep = Flow.keepOresFor(rockName)
+			local names = {}
+			if type(keep) == "table" then
+				for ore in pairs(keep) do
+					names[#names + 1] = Flow.itemLabel(ore)
+				end
+				table.sort(names)
+			end
+			Flow.markSkip(Flow.target)
+			Flow.stopHold()
+			Flow.target = nil
+			Flow.arriveAt = 0
+			state.status = "跳过 " .. Flow.rockLabel(rockName) .. (#names > 0 and (" 无" .. table.concat(names, "/")) or "")
 		end
 		if not Flow.aliveTarget(Flow.target) then
 			Flow.stopHold()
@@ -4229,11 +4441,12 @@ local function bindFarm()
 				return job
 			end
 			if Flow.isKnownOre(target) then
-				local rock = Flow.bestRockForOre(target)
-				if rock then
+				local rocks = Flow.rocksForOre(target)
+				if rocks and next(rocks) then
 					job.kind = "mine"
-					job.rocks = { [rock] = true }
-					job.label = "任务挖" .. Flow.itemLabel(target) .. " · " .. Flow.rockLabel(rock) .. (frac and (" " .. frac) or "")
+					job.rocks = rocks
+					job.keepOres = { [target] = true }
+					job.label = "任务挖" .. Flow.itemLabel(target) .. (frac and (" " .. frac) or "")
 					return job
 				end
 				job.label = "当前图挖不到 " .. Flow.itemLabel(target)
@@ -4275,11 +4488,12 @@ local function bindFarm()
 		end
 		if typ == "Extra" and target then
 			if Flow.isKnownOre(target) and target ~= "Ore" then
-				local rock = Flow.bestRockForOre(target)
-				if rock then
+				local rocks = Flow.rocksForOre(target)
+				if rocks and next(rocks) then
 					job.kind = "mine"
-					job.rocks = { [rock] = true }
-					job.label = "任务挖" .. Flow.itemLabel(target) .. " · " .. Flow.rockLabel(rock)
+					job.rocks = rocks
+					job.keepOres = { [target] = true }
+					job.label = "任务挖" .. Flow.itemLabel(target)
 					return job
 				end
 			end
@@ -4705,9 +4919,20 @@ local function bindFarm()
 		for name, btn in pairs(Flow.checks) do
 			if btn and btn.Parent then
 				local on = state.selected[name] == true
-				btn.BackgroundColor3 = on and C.on or C.off
+				local open = state.openRock == name
+				if on then
+					btn.BackgroundColor3 = C.on
+				elseif open then
+					btn.BackgroundColor3 = C.tab
+				else
+					btn.BackgroundColor3 = C.off
+				end
 				local lab = btn:FindFirstChild("NameLab")
 				local label = Flow.rockLabel(name)
+				local n = Flow.oreKeepCount(name)
+				if n > 0 then
+					label = label .. " · " .. tostring(n)
+				end
 				if lab then
 					lab.Text = (on and "开  " or "关  ") .. label
 				else
@@ -4718,6 +4943,17 @@ local function bindFarm()
 		for _, pack in pairs(Flow.mapHeads) do
 			if pack and pack.update then
 				pack.update()
+			end
+		end
+		if type(Flow.refreshOrePanel) == "function" then
+			Flow.refreshOrePanel()
+		end
+	end
+
+	function Flow.refreshOrePanel()
+		for _, pack in pairs(Flow.mapHeads) do
+			if pack and pack.refreshOres then
+				pack.refreshOres()
 			end
 		end
 	end
@@ -5673,7 +5909,7 @@ local function bindUi()
 	local questHint = Instance.new("TextLabel")
 	questHint.BackgroundTransparency = 1
 	questHint.Font = Enum.Font.Gotham
-	questHint.Text = "只做任务栏里正在进行的，按实时进度跳过已完成的子任务。做不了的改做下一条能自动进行的。"
+	questHint.Text = "只做任务栏里正在进行的，按实时进度跳过已完成的子任务。收指定矿时挖到一半不是要的就换下一块。做不了的改做下一条能自动进行的。"
 	questHint.TextColor3 = C.dim
 	questHint.TextSize = 11
 	questHint.TextXAlignment = Enum.TextXAlignment.Left
@@ -5711,12 +5947,12 @@ local function bindUi()
 	local hint = Instance.new("TextLabel")
 	hint.BackgroundTransparency = 1
 	hint.Font = Enum.Font.Gotham
-	hint.Text = "上下朝向：正数在空中往下挖，负数在地下往上挖。"
+	hint.Text = "上下朝向：正数在空中往下挖，负数在地下往上挖。不选石头=本图全挖。点石头展开可出矿，勾选保留；挖到一半对不上就换下一块。"
 	hint.TextColor3 = C.dim
 	hint.TextSize = 11
 	hint.TextXAlignment = Enum.TextXAlignment.Left
 	hint.TextWrapped = true
-	hint.Size = UDim2.new(1, 0, 0, 28)
+	hint.Size = UDim2.new(1, 0, 0, 40)
 	hint.LayoutOrder = 7
 	hint.Parent = scroll
 
@@ -5814,11 +6050,169 @@ local function bindUi()
 		gridLay.SortOrder = Enum.SortOrder.LayoutOrder
 		gridLay.Parent = grid
 
+		local oreBox = Instance.new("Frame")
+		oreBox.BackgroundColor3 = C.panel
+		oreBox.BackgroundTransparency = 0
+		oreBox.AutomaticSize = Enum.AutomaticSize.Y
+		oreBox.Size = UDim2.new(1, 0, 0, 0)
+		oreBox.LayoutOrder = 3
+		oreBox.Visible = false
+		oreBox.Parent = body
+		corner(oreBox, 6)
+		local orePad = Instance.new("UIPadding")
+		orePad.PaddingTop = UDim.new(0, 6)
+		orePad.PaddingBottom = UDim.new(0, 6)
+		orePad.PaddingLeft = UDim.new(0, 6)
+		orePad.PaddingRight = UDim.new(0, 6)
+		orePad.Parent = oreBox
+		local oreList = Instance.new("UIListLayout")
+		oreList.Padding = UDim.new(0, 4)
+		oreList.SortOrder = Enum.SortOrder.LayoutOrder
+		oreList.Parent = oreBox
+		local oreTip = Instance.new("TextLabel")
+		oreTip.BackgroundTransparency = 1
+		oreTip.Font = Enum.Font.Gotham
+		oreTip.Text = ""
+		oreTip.TextColor3 = C.dim
+		oreTip.TextSize = 11
+		oreTip.TextWrapped = true
+		oreTip.TextXAlignment = Enum.TextXAlignment.Left
+		oreTip.Size = UDim2.new(1, 0, 0, 28)
+		oreTip.LayoutOrder = 1
+		oreTip.Parent = oreBox
+		local oreAct = Instance.new("Frame")
+		oreAct.BackgroundTransparency = 1
+		oreAct.Size = UDim2.new(1, 0, 0, 24)
+		oreAct.LayoutOrder = 2
+		oreAct.Parent = oreBox
+		local oreAll = Instance.new("TextButton")
+		oreAll.BackgroundColor3 = C.btn
+		oreAll.BorderSizePixel = 0
+		oreAll.Font = Enum.Font.Gotham
+		oreAll.Text = "全选这些矿"
+		oreAll.TextColor3 = C.text
+		oreAll.TextSize = 11
+		oreAll.Size = UDim2.new(0.5, -3, 1, 0)
+		oreAll.Parent = oreAct
+		corner(oreAll, 4)
+		local oreNone = Instance.new("TextButton")
+		oreNone.BackgroundColor3 = C.btn
+		oreNone.BorderSizePixel = 0
+		oreNone.Font = Enum.Font.Gotham
+		oreNone.Text = "清空筛选"
+		oreNone.TextColor3 = C.text
+		oreNone.TextSize = 11
+		oreNone.Position = UDim2.new(0.5, 3, 0, 0)
+		oreNone.Size = UDim2.new(0.5, -3, 1, 0)
+		oreNone.Parent = oreAct
+		corner(oreNone, 4)
+		local oreGrid = Instance.new("Frame")
+		oreGrid.BackgroundTransparency = 1
+		oreGrid.AutomaticSize = Enum.AutomaticSize.Y
+		oreGrid.Size = UDim2.new(1, 0, 0, 0)
+		oreGrid.LayoutOrder = 3
+		oreGrid.Parent = oreBox
+		local oreLay = Instance.new("UIGridLayout")
+		oreLay.CellPadding = UDim2.fromOffset(4, 4)
+		oreLay.CellSize = UDim2.fromOffset(100, 28)
+		oreLay.FillDirection = Enum.FillDirection.Horizontal
+		oreLay.HorizontalAlignment = Enum.HorizontalAlignment.Left
+		oreLay.SortOrder = Enum.SortOrder.LayoutOrder
+		oreLay.Parent = oreGrid
+		local function fitOreGrid()
+			oreGrid.Size = UDim2.new(1, 0, 0, math.max(0, oreLay.AbsoluteContentSize.Y))
+		end
+		oreLay:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(fitOreGrid)
+
+		local lastOreRock = nil
+		local function refreshOres()
+			local rock = state.openRock
+			local onMap = false
+			if rock then
+				for _, name in ipairs(map.rocks) do
+					if name == rock then
+						onMap = true
+						break
+					end
+				end
+			end
+			local show = body.Visible and onMap
+			oreBox.Visible = show
+			if not show then
+				return
+			end
+			oreTip.Text = Flow.rockLabel(rock) .. " 可出矿 · 勾选保留，挖到一半没有就换下一块"
+			if lastOreRock ~= rock then
+				lastOreRock = rock
+				for _, child in ipairs(oreGrid:GetChildren()) do
+					if child:IsA("GuiButton") then
+						child:Destroy()
+					end
+				end
+				for oi, ore in ipairs(Flow.rockOres[rock] or {}) do
+					local chip = Instance.new("TextButton")
+					chip.BackgroundColor3 = C.off
+					chip.BorderSizePixel = 0
+					chip.Font = Enum.Font.Gotham
+					chip.Text = Flow.itemLabel(ore)
+					chip.TextColor3 = C.text
+					chip.TextSize = 11
+					chip.LayoutOrder = oi
+					chip.AutoButtonColor = true
+					chip.Parent = oreGrid
+					chip:SetAttribute("OreId", ore)
+					corner(chip, 4)
+					chip.MouseButton1Click:Connect(function()
+						Flow.toggleOreKeep(rock, ore)
+						Flow.refreshChecks()
+					end)
+				end
+			end
+			for _, child in ipairs(oreGrid:GetChildren()) do
+				if child:IsA("GuiButton") then
+					local ore = child:GetAttribute("OreId")
+					local on = state.oreKeep[rock] and state.oreKeep[rock][ore] == true
+					child.BackgroundColor3 = on and C.on or C.off
+				end
+			end
+		end
+
+		oreAll.MouseButton1Click:Connect(function()
+			local rock = state.openRock
+			if not rock then
+				return
+			end
+			state.oreKeep[rock] = {}
+			for _, ore in ipairs(Flow.rockOres[rock] or {}) do
+				state.oreKeep[rock][ore] = true
+			end
+			if next(state.oreKeep[rock]) then
+				state.selected[rock] = true
+			else
+				state.oreKeep[rock] = nil
+			end
+			Flow.refreshChecks()
+		end)
+		oreNone.MouseButton1Click:Connect(function()
+			local rock = state.openRock
+			if rock then
+				state.oreKeep[rock] = nil
+			end
+			Flow.refreshChecks()
+		end)
+
 		for ri, rockName in ipairs(map.rocks) do
 			local cb = mkRock(grid, rockName, 10 + ri)
 			Flow.checks[rockName] = cb
 			cb.MouseButton1Click:Connect(function()
-				state.selected[rockName] = not state.selected[rockName]
+				if state.openRock == rockName then
+					state.selected[rockName] = not state.selected[rockName]
+					if not state.selected[rockName] then
+						state.oreKeep[rockName] = nil
+					end
+				else
+					state.openRock = rockName
+				end
 				Flow.refreshChecks()
 			end)
 		end
@@ -5828,7 +6222,7 @@ local function bindUi()
 			local mark = body.Visible and "▾" or "▸"
 			head.Text = mark .. "  " .. map.title .. "    " .. n .. "/" .. #map.rocks
 		end
-		Flow.mapHeads[map.id] = { update = updateHead, body = body }
+		Flow.mapHeads[map.id] = { update = updateHead, body = body, refreshOres = refreshOres }
 		updateHead()
 
 		head.MouseButton1Click:Connect(function()
@@ -5845,9 +6239,11 @@ local function bindUi()
 						pack.update()
 					end
 				end
+				Flow.refreshOrePanel()
 				return
 			end
 			updateHead()
+			Flow.refreshOrePanel()
 		end)
 		allBtn.MouseButton1Click:Connect(function()
 			for _, name in ipairs(map.rocks) do
@@ -5858,6 +6254,7 @@ local function bindUi()
 		noneBtn.MouseButton1Click:Connect(function()
 			for _, name in ipairs(map.rocks) do
 				state.selected[name] = nil
+				state.oreKeep[name] = nil
 			end
 			Flow.refreshChecks()
 		end)
