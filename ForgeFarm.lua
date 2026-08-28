@@ -1,6 +1,6 @@
 --!nocheck
 --!nolint
-local FORGE_VERSION = "1.1.10"
+local FORGE_VERSION = "1.1.11"
 print("[Forge] boot " .. FORGE_VERSION)
 
 local function grab(name)
@@ -1801,7 +1801,38 @@ local function bindFarm()
 		return part and part.Position or nil
 	end
 
+	function Flow.rockCrit(model)
+		if not model then
+			return nil
+		end
+		local p = model:FindFirstChild("RockCritical")
+		if not (p and p:IsA("BasePart")) then
+			p = model:FindFirstChild("RockCritical", true)
+		end
+		if p and p:IsA("BasePart") and p.Parent then
+			return p
+		end
+		return nil
+	end
+
+	function Flow.critNormal(crit)
+		if not crit then
+			return Vector3.zAxis
+		end
+		local n = Vector3.new(tonumber(crit:GetAttribute("surfaceX")) or 0, tonumber(crit:GetAttribute("surfaceY")) or 0, tonumber(crit:GetAttribute("surfaceZ")) or 0)
+		if n.Magnitude >= 0.15 then
+			return n.Unit
+		end
+		return crit.CFrame.UpVector
+	end
+
 	function Flow.standCF(model)
+		local crit = Flow.rockCrit(model)
+		if crit then
+			local look = crit.Position
+			local dist = math.max(tonumber(state.standDist) or 4.5, 2.2)
+			return Flow.lookCF(look + Flow.critNormal(crit) * dist, look)
+		end
 		local center = Flow.centerOf(model)
 		if not center then
 			return nil
@@ -1963,6 +1994,9 @@ local function bindFarm()
 				return
 			end
 			local d = (center - hrp.Position).Magnitude
+			if Flow.rockCrit(model) then
+				d = d - 10000
+			end
 			if not bestD or d < bestD then
 				best = model
 				bestD = d
@@ -2022,7 +2056,8 @@ local function bindFarm()
 		end
 		if state.mineOn and Flow.aliveTarget(Flow.target) then
 			local dest = Flow.standCF(Flow.target)
-			local look = Flow.centerOf(Flow.target)
+			local crit = Flow.rockCrit(Flow.target)
+			local look = crit and crit.Position or Flow.centerOf(Flow.target)
 			if dest and look then
 				return dest, look, "mine"
 			end
@@ -2151,15 +2186,23 @@ local function bindFarm()
 			Flow.stopHold()
 			Flow.target = Flow.findNearest()
 			Flow.arriveAt = 0
+		elseif not Flow.rockCrit(Flow.target) then
+			local other = Flow.findNearest()
+			if other and other ~= Flow.target and Flow.rockCrit(other) then
+				Flow.stopHold()
+				Flow.target = other
+				Flow.arriveAt = 0
+			end
 		end
 		if not Flow.target then
 			state.status = "等待刷新  场上" .. tostring(Flow.countReady())
 			return
 		end
+		local crit = Flow.rockCrit(Flow.target)
 		if not Flow.atStand(Flow.target) then
 			Flow.stopHold()
 			Flow.arriveAt = 0
-			state.status = "飞向 " .. Flow.rockLabel(Flow.target.Name)
+			state.status = (crit and "飞向暴击 " or "飞向 ") .. Flow.rockLabel(Flow.target.Name)
 			return
 		end
 		if Flow.arriveAt == 0 then
@@ -2169,7 +2212,7 @@ local function bindFarm()
 			state.status = "到位 " .. Flow.rockLabel(Flow.target.Name)
 			return
 		end
-		state.status = "挖掘 " .. Flow.rockLabel(Flow.target.Name)
+		state.status = (crit and "暴击 " or "挖掘 ") .. Flow.rockLabel(Flow.target.Name)
 		Flow.startHold()
 	end
 
