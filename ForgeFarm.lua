@@ -1,6 +1,6 @@
 --!nocheck
 --!nolint
-local FORGE_VERSION = "1.1.21"
+local FORGE_VERSION = "1.1.22"
 print("[Forge] boot " .. FORGE_VERSION)
 
 local function grab(name)
@@ -4176,10 +4176,34 @@ local function bindFarm()
 		if not job then
 			return false
 		end
+		local here = Flow.placeMap[game.PlaceId]
 		if job.kind == "mine" then
-			return job.rocks and next(job.rocks) ~= nil
+			if not (job.rocks and next(job.rocks)) then
+				return false
+			end
+			local localRocks = here and Flow.mapRockSet(here) or {}
+			for rock in pairs(job.rocks) do
+				if (not next(localRocks) or localRocks[rock]) and (type(Flow.canMineType) ~= "function" or Flow.canMineType(rock)) then
+					return true
+				end
+			end
+			return false
 		end
 		if job.kind == "hunt" then
+			if not (job.mobs and next(job.mobs)) then
+				return false
+			end
+			if job.target and here and not Flow.mobOnMap(job.target, here) then
+				local living = workspace:FindFirstChild("Living")
+				if living then
+					for _, model in ipairs(living:GetChildren()) do
+						if Flow.mobType(model) == job.target then
+							return true
+						end
+					end
+				end
+				return false
+			end
 			return true
 		end
 		if job.kind == "talk" then
@@ -4192,31 +4216,33 @@ local function bindFarm()
 			return Flow.nearestPickup(job.item) ~= nil
 		end
 		if job.kind == "equip" then
-			return true
+			local tool = job.tool == "Weapon" and Flow.getWeapon() or Flow.getPickaxe()
+			return tool ~= nil
 		end
 		return false
 	end
 
 	function Flow.pickQuestJob()
-		local best
-		local bestScore
+		local doable
+		local doableScore
+		local stuck
+		local stuckScore
 		for _, e in ipairs(Flow.listedQuests()) do
 			local job = Flow.buildQuestJob(e.id, e.live)
 			if job then
 				local score = Flow.questPriority(e.id)
-				if not Flow.jobDoableHere(job) then
-					score = score + 5000
-				end
-				if job.kind == "wait" or job.kind == "ui" then
-					score = score + 8000
-				end
-				if not bestScore or score < bestScore then
-					bestScore = score
-					best = job
+				if Flow.jobDoableHere(job) then
+					if not doableScore or score < doableScore then
+						doableScore = score
+						doable = job
+					end
+				elseif not stuckScore or score < stuckScore then
+					stuckScore = score
+					stuck = job
 				end
 			end
 		end
-		return best
+		return doable or stuck
 	end
 
 	function Flow.sameQuestJob(a, b)
@@ -4452,6 +4478,11 @@ local function bindFarm()
 			state.status = "任务栏没有进行中任务"
 			return
 		end
+		if not Flow.jobDoableHere(job) then
+			Flow.questJob = job
+			state.status = "先跳过，没有可自动进行的  " .. (job.label or "")
+			return
+		end
 		if not Flow.sameQuestJob(Flow.questJob, job) then
 			Flow.target = nil
 			Flow.huntTarget = nil
@@ -4461,7 +4492,7 @@ local function bindFarm()
 			Flow.questJob = job
 		end
 		if job.kind == "mine" or job.kind == "hunt" then
-			if state.status == "待机" or state.status == "任务栏没有进行中任务" then
+			if state.status == "待机" or state.status == "任务栏没有进行中任务" or string.find(state.status, "先跳过", 1, true) then
 				state.status = job.label
 			end
 			return
@@ -5511,7 +5542,7 @@ local function bindUi()
 	local questHint = Instance.new("TextLabel")
 	questHint.BackgroundTransparency = 1
 	questHint.Font = Enum.Font.Gotham
-	questHint.Text = "只做任务栏里正在进行的，按当前进度继续，不会重开主线。挖矿/指定矿石/杀怪套用左边飞行和站位。"
+	questHint.Text = "只做任务栏里正在进行的。当前这条做不了（锻造、强化、不在这张图）就改做下一条能自动进行的。"
 	questHint.TextColor3 = C.dim
 	questHint.TextSize = 11
 	questHint.TextXAlignment = Enum.TextXAlignment.Left
