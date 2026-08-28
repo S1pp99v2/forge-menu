@@ -1,6 +1,6 @@
 --!nocheck
 --!nolint
-local FORGE_VERSION = "1.1.25"
+local FORGE_VERSION = "1.1.26"
 print("[Forge] boot " .. FORGE_VERSION)
 
 local function grab(name)
@@ -162,8 +162,8 @@ local state = {
 	openMap = nil,
 	openSell = "ore",
 	status = "待机",
-	winW = 920,
-	winH = 400,
+	winW = 720,
+	winH = 340,
 	winX = 22,
 	winY = 88,
 }
@@ -274,8 +274,8 @@ function Flow.applyCfg(cfg)
 		state.sellOwned = true
 	end
 	if tonumber(cfg.winW) and tonumber(cfg.winH) then
-		state.winW = math.clamp(tonumber(cfg.winW), 640, 1600)
-		state.winH = math.clamp(tonumber(cfg.winH), 280, 1000)
+		state.winW = math.clamp(tonumber(cfg.winW), 480, 1600)
+		state.winH = math.clamp(tonumber(cfg.winH), 220, 1000)
 	end
 	if tonumber(cfg.winX) then
 		state.winX = tonumber(cfg.winX)
@@ -4956,6 +4956,9 @@ local function bindFarm()
 				pack.refreshOres()
 			end
 		end
+		if type(layoutCells) == "function" then
+			layoutCells()
+		end
 	end
 
 	function Flow.paintCard(btn, on, text)
@@ -5256,7 +5259,7 @@ local function bindUi()
 	window.BackgroundColor3 = C.bg
 	window.BorderSizePixel = 0
 	window.Position = UDim2.fromOffset(state.winX or 22, state.winY or 88)
-	window.Size = UDim2.fromOffset(state.winW or 920, state.winH or 400)
+	window.Size = UDim2.fromOffset(state.winW or 720, state.winH or 340)
 	Flow.window = window
 	window.ClipsDescendants = true
 	window.ZIndex = 50
@@ -5288,7 +5291,7 @@ local function bindUi()
 	local startSize = nil
 	local function clampWin(w, h)
 		local vp = workspace.CurrentCamera and workspace.CurrentCamera.ViewportSize or Vector2.new(1280, 720)
-		return math.clamp(math.floor(w + 0.5), 640, math.max(640, vp.X - 16)), math.clamp(math.floor(h + 0.5), 280, math.max(280, vp.Y - 16))
+		return math.clamp(math.floor(w + 0.5), 480, math.max(480, vp.X - 16)), math.clamp(math.floor(h + 0.5), 220, math.max(220, vp.Y - 16))
 	end
 	title.InputBegan:Connect(function(input)
 		if input.UserInputType == Enum.UserInputType.MouseButton1 then
@@ -5388,6 +5391,40 @@ local function bindUi()
 	right.Size = UDim2.new(1, -116, 1, -20)
 	right.Parent = window
 
+	local cardLays = {}
+	local function registerLay(lay, kind)
+		if lay then
+			cardLays[#cardLays + 1] = { lay = lay, kind = kind }
+		end
+	end
+	local function layoutCells()
+		local avail = right.AbsoluteSize.X
+		if avail < 40 then
+			avail = math.max(80, (window.AbsoluteSize.X or state.winW or 720) - 124)
+		end
+		avail = math.max(80, avail - 6)
+		local scale = math.clamp(avail / 620, 0.68, 1.08)
+		local specs = {
+			rock = { target = 62, aspect = 1.24, pad = 4 },
+			ore = { target = 50, aspect = 1.30, pad = 3 },
+			hunt = { target = 62, aspect = 1.24, pad = 4 },
+			pot = { target = 62, aspect = 1.24, pad = 4 },
+			sell = { target = 62, aspect = 1.36, pad = 4 },
+		}
+		for _, pack in ipairs(cardLays) do
+			local spec = specs[pack.kind] or specs.rock
+			local cellW = math.max(42, math.floor(spec.target * scale))
+			local cols = math.max(2, math.floor((avail + spec.pad) / (cellW + spec.pad)))
+			cellW = math.max(42, math.floor((avail - spec.pad * (cols - 1)) / cols))
+			local cellH = math.max(54, math.floor(cellW * spec.aspect))
+			pack.lay.CellPadding = UDim2.fromOffset(spec.pad, spec.pad)
+			pack.lay.CellSize = UDim2.fromOffset(cellW, cellH)
+		end
+	end
+	Flow.layoutCells = layoutCells
+	right:GetPropertyChangedSignal("AbsoluteSize"):Connect(layoutCells)
+	window:GetPropertyChangedSignal("AbsoluteSize"):Connect(layoutCells)
+
 	local function mkPage()
 		local page = Instance.new("ScrollingFrame")
 		page.BackgroundTransparency = 1
@@ -5400,7 +5437,7 @@ local function bindUi()
 		page.ScrollBarImageColor3 = C.line
 		page.Parent = right
 		local pageList = Instance.new("UIListLayout")
-		pageList.Padding = UDim.new(0, 6)
+		pageList.Padding = UDim.new(0, 5)
 		pageList.SortOrder = Enum.SortOrder.LayoutOrder
 		pageList.Parent = page
 		return page
@@ -5712,103 +5749,69 @@ local function bindUi()
 	end
 	Flow.ensureSellIcons = ensureSellIcons
 
-	local function mkRock(parent, rockName, order)
+	local function mkCard(parent, key, label, kind, order, variant)
+		variant = variant or "card"
 		local b = Instance.new("TextButton")
 		b.BackgroundColor3 = C.off
 		b.BorderSizePixel = 0
 		b.Text = ""
 		b.AutoButtonColor = true
-		b.Size = UDim2.fromOffset(104, 128)
+		b.Size = UDim2.fromScale(1, 1)
 		b.LayoutOrder = order or 0
 		b.Parent = parent
-		corner(b, 6)
+		corner(b, 5)
 		local icon = Instance.new("ViewportFrame")
 		icon.BackgroundColor3 = Color3.fromRGB(14, 22, 32)
 		icon.BorderSizePixel = 0
 		icon.AnchorPoint = Vector2.new(0.5, 0)
-		icon.Position = UDim2.new(0.5, 0, 0, 6)
-		icon.Size = UDim2.fromOffset(88, 88)
+		icon.Position = UDim2.new(0.5, 0, 0.04, 0)
+		icon.Size = UDim2.new(0.88, 0, variant == "sell" and 0.60 or 0.70, 0)
 		icon.LightColor = Color3.fromRGB(255, 255, 255)
 		icon.Ambient = Color3.fromRGB(170, 170, 170)
 		icon.LightDirection = Vector3.new(-1, -1, -1)
 		icon.Parent = b
-		corner(icon, 6)
-		fillRockIcon(icon, rockName, "Rock")
-		local lab = Instance.new("TextLabel")
-		lab.Name = "NameLab"
-		lab.BackgroundTransparency = 1
-		lab.Font = Enum.Font.Gotham
-		lab.Text = "关  " .. Flow.rockLabel(rockName)
-		lab.TextColor3 = C.text
-		lab.TextSize = 11
-		lab.TextWrapped = true
-		lab.TextXAlignment = Enum.TextXAlignment.Center
-		lab.TextYAlignment = Enum.TextYAlignment.Top
-		lab.Position = UDim2.fromOffset(4, 96)
-		lab.Size = UDim2.new(1, -8, 0, 28)
-		lab.Parent = b
-		return b
-	end
-
-	local function mkCard(parent, key, label, kind, order)
-		local b = Instance.new("TextButton")
-		b.BackgroundColor3 = C.off
-		b.BorderSizePixel = 0
-		b.Text = ""
-		b.AutoButtonColor = true
-		b.Size = UDim2.fromOffset(104, 128)
-		b.LayoutOrder = order or 0
-		b.Parent = parent
-		corner(b, 6)
-		local icon = Instance.new("ViewportFrame")
-		icon.BackgroundColor3 = Color3.fromRGB(14, 22, 32)
-		icon.BorderSizePixel = 0
-		icon.AnchorPoint = Vector2.new(0.5, 0)
-		icon.Position = UDim2.new(0.5, 0, 0, 6)
-		icon.Size = UDim2.fromOffset(88, 88)
-		icon.LightColor = Color3.fromRGB(255, 255, 255)
-		icon.Ambient = Color3.fromRGB(170, 170, 170)
-		icon.LightDirection = Vector3.new(-1, -1, -1)
-		icon.Parent = b
-		corner(icon, 6)
+		corner(icon, 5)
 		fillRockIcon(icon, key, kind)
 		local lab = Instance.new("TextLabel")
 		lab.Name = "NameLab"
 		lab.BackgroundTransparency = 1
 		lab.Font = Enum.Font.Gotham
-		lab.Text = "关  " .. label
+		lab.Text = label
 		lab.TextColor3 = C.text
-		lab.TextSize = 11
+		lab.TextSize = 10
 		lab.TextWrapped = true
 		lab.TextXAlignment = Enum.TextXAlignment.Center
 		lab.TextYAlignment = Enum.TextYAlignment.Top
-		lab.Position = UDim2.fromOffset(4, 96)
-		lab.Size = UDim2.new(1, -8, 0, 28)
+		if variant == "sell" then
+			lab.Position = UDim2.new(0.04, 0, 0.66, 0)
+			lab.Size = UDim2.new(0.92, 0, 0.16, 0)
+		else
+			lab.Position = UDim2.new(0.04, 0, 0.76, 0)
+			lab.Size = UDim2.new(0.92, 0, 0.20, 0)
+		end
 		lab.Parent = b
 		return b
 	end
 
+	local function mkRock(parent, rockName, order)
+		return mkCard(parent, rockName, "关  " .. Flow.rockLabel(rockName), "Rock", order, "rock")
+	end
+
 	local function mkSellCard(parent, info, order)
 		local kind = info.kind == "ore" and "Ore" or (info.kind == "mat" and "Material" or "Rune")
-		local b = mkCard(parent, info.id, info.label, kind, order)
-		b.Size = UDim2.fromOffset(104, 142)
+		local b = mkCard(parent, info.id, info.label, kind, order, "sell")
 		b:SetAttribute("SellId", info.id)
 		b:SetAttribute("SellKind", info.kind)
-		local lab = b:FindFirstChild("NameLab")
-		if lab then
-			lab.Position = UDim2.fromOffset(4, 94)
-			lab.Size = UDim2.new(1, -8, 0, 22)
-		end
 		local meta = Instance.new("TextLabel")
 		meta.Name = "MetaLab"
 		meta.BackgroundTransparency = 1
 		meta.Font = Enum.Font.Gotham
 		meta.Text = ""
 		meta.TextColor3 = C.dim
-		meta.TextSize = 11
+		meta.TextSize = 10
 		meta.TextXAlignment = Enum.TextXAlignment.Center
-		meta.Position = UDim2.fromOffset(4, 116)
-		meta.Size = UDim2.new(1, -8, 0, 22)
+		meta.Position = UDim2.new(0.04, 0, 0.82, 0)
+		meta.Size = UDim2.new(0.92, 0, 0.15, 0)
 		meta.Parent = b
 		local vf = b:FindFirstChildOfClass("ViewportFrame")
 		if vf then
@@ -6043,12 +6046,13 @@ local function bindUi()
 		grid.LayoutOrder = 2
 		grid.Parent = body
 		local gridLay = Instance.new("UIGridLayout")
-		gridLay.CellPadding = UDim2.fromOffset(6, 6)
-		gridLay.CellSize = UDim2.fromOffset(104, 128)
+		gridLay.CellPadding = UDim2.fromOffset(4, 4)
+		gridLay.CellSize = UDim2.fromOffset(62, 77)
 		gridLay.FillDirection = Enum.FillDirection.Horizontal
 		gridLay.HorizontalAlignment = Enum.HorizontalAlignment.Left
 		gridLay.SortOrder = Enum.SortOrder.LayoutOrder
 		gridLay.Parent = grid
+		registerLay(gridLay, "rock")
 
 		local oreBox = Instance.new("Frame")
 		oreBox.BackgroundColor3 = C.panel
@@ -6060,10 +6064,10 @@ local function bindUi()
 		oreBox.Parent = body
 		corner(oreBox, 6)
 		local orePad = Instance.new("UIPadding")
-		orePad.PaddingTop = UDim.new(0, 6)
-		orePad.PaddingBottom = UDim.new(0, 6)
-		orePad.PaddingLeft = UDim.new(0, 6)
-		orePad.PaddingRight = UDim.new(0, 6)
+		orePad.PaddingTop = UDim.new(0, 4)
+		orePad.PaddingBottom = UDim.new(0, 4)
+		orePad.PaddingLeft = UDim.new(0, 4)
+		orePad.PaddingRight = UDim.new(0, 4)
 		orePad.Parent = oreBox
 		local oreList = Instance.new("UIListLayout")
 		oreList.Padding = UDim.new(0, 4)
@@ -6077,7 +6081,7 @@ local function bindUi()
 		oreTip.TextSize = 11
 		oreTip.TextWrapped = true
 		oreTip.TextXAlignment = Enum.TextXAlignment.Left
-		oreTip.Size = UDim2.new(1, 0, 0, 28)
+		oreTip.Size = UDim2.new(1, 0, 0, 22)
 		oreTip.LayoutOrder = 1
 		oreTip.Parent = oreBox
 		local oreAct = Instance.new("Frame")
@@ -6113,12 +6117,13 @@ local function bindUi()
 		oreGrid.LayoutOrder = 3
 		oreGrid.Parent = oreBox
 		local oreLay = Instance.new("UIGridLayout")
-		oreLay.CellPadding = UDim2.fromOffset(4, 4)
-		oreLay.CellSize = UDim2.fromOffset(100, 28)
+		oreLay.CellPadding = UDim2.fromOffset(3, 3)
+		oreLay.CellSize = UDim2.fromOffset(50, 65)
 		oreLay.FillDirection = Enum.FillDirection.Horizontal
 		oreLay.HorizontalAlignment = Enum.HorizontalAlignment.Left
 		oreLay.SortOrder = Enum.SortOrder.LayoutOrder
 		oreLay.Parent = oreGrid
+		registerLay(oreLay, "ore")
 		local function fitOreGrid()
 			oreGrid.Size = UDim2.new(1, 0, 0, math.max(0, oreLay.AbsoluteContentSize.Y))
 		end
@@ -6150,18 +6155,8 @@ local function bindUi()
 					end
 				end
 				for oi, ore in ipairs(Flow.rockOres[rock] or {}) do
-					local chip = Instance.new("TextButton")
-					chip.BackgroundColor3 = C.off
-					chip.BorderSizePixel = 0
-					chip.Font = Enum.Font.Gotham
-					chip.Text = Flow.itemLabel(ore)
-					chip.TextColor3 = C.text
-					chip.TextSize = 11
-					chip.LayoutOrder = oi
-					chip.AutoButtonColor = true
-					chip.Parent = oreGrid
+					local chip = mkCard(oreGrid, ore, Flow.itemLabel(ore), "Ore", oi, "ore")
 					chip:SetAttribute("OreId", ore)
-					corner(chip, 4)
 					chip.MouseButton1Click:Connect(function()
 						Flow.toggleOreKeep(rock, ore)
 						Flow.refreshChecks()
@@ -6333,11 +6328,12 @@ local function bindUi()
 	huntGrid.LayoutOrder = 5
 	huntGrid.Parent = huntPage
 	local huntLay = Instance.new("UIGridLayout")
-	huntLay.CellPadding = UDim2.fromOffset(6, 6)
-	huntLay.CellSize = UDim2.fromOffset(104, 128)
+	huntLay.CellPadding = UDim2.fromOffset(4, 4)
+	huntLay.CellSize = UDim2.fromOffset(62, 77)
 	huntLay.FillDirection = Enum.FillDirection.Horizontal
 	huntLay.SortOrder = Enum.SortOrder.LayoutOrder
 	huntLay.Parent = huntGrid
+	registerLay(huntLay, "hunt")
 	local islandMobs = Flow.mobsByMap[here] or Flow.mobsByMap[3]
 	for i, mobName in ipairs(islandMobs) do
 		local cb = mkCard(huntGrid, mobName, Flow.mobLabel(mobName), "Mob", i)
@@ -6413,11 +6409,12 @@ local function bindUi()
 	potGrid.LayoutOrder = 4
 	potGrid.Parent = potPage
 	local potLay = Instance.new("UIGridLayout")
-	potLay.CellPadding = UDim2.fromOffset(6, 6)
-	potLay.CellSize = UDim2.fromOffset(104, 128)
+	potLay.CellPadding = UDim2.fromOffset(4, 4)
+	potLay.CellSize = UDim2.fromOffset(62, 77)
 	potLay.FillDirection = Enum.FillDirection.Horizontal
 	potLay.SortOrder = Enum.SortOrder.LayoutOrder
 	potLay.Parent = potGrid
+	registerLay(potLay, "pot")
 	for i, info in ipairs(Flow.potions) do
 		local qty = Flow.potionQty(info.id)
 		local cb = mkCard(potGrid, info.id, Flow.potLabel(info.id) .. "  x" .. tostring(qty), "Potion", i)
@@ -6518,11 +6515,12 @@ local function bindUi()
 		body.Visible = state.openSell == cat.id
 		body.Parent = wrap
 		local gridLay = Instance.new("UIGridLayout")
-		gridLay.CellPadding = UDim2.fromOffset(6, 6)
-		gridLay.CellSize = UDim2.fromOffset(104, 142)
+		gridLay.CellPadding = UDim2.fromOffset(4, 4)
+		gridLay.CellSize = UDim2.fromOffset(62, 84)
 		gridLay.FillDirection = Enum.FillDirection.Horizontal
 		gridLay.SortOrder = Enum.SortOrder.LayoutOrder
 		gridLay.Parent = body
+		registerLay(gridLay, "sell")
 		local catId = cat.id
 		local function countKind()
 			local n = 0
@@ -7651,6 +7649,7 @@ local function bindUi()
 	end)
 
 	Flow.refreshChecks()
+	task.defer(layoutCells)
 end
 
 pcall(Flow.loadCfg)
