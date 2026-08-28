@@ -1,6 +1,6 @@
 --!nocheck
 --!nolint
-local FORGE_VERSION = "1.1.18"
+local FORGE_VERSION = "1.1.19"
 print("[Forge] boot " .. FORGE_VERSION)
 
 local function grab(name)
@@ -137,6 +137,7 @@ local C = {
 local state = {
 	mineOn = false,
 	atkOn = false,
+	questOn = false,
 	huntOn = false,
 	potOn = false,
 	sellOn = false,
@@ -167,6 +168,9 @@ local state = {
 
 local Flow = {
 	target = nil,
+	questJob = nil,
+	questTalkAt = 0,
+	_trackedQuest = nil,
 	hoverOn = false,
 	savedPlat = false,
 	savedRot = true,
@@ -1052,6 +1056,7 @@ function Flow.ensureOreCache()
 				if not old or mult >= (old.mult or 0) then
 					cache[v.Name] = {
 						mult = mult,
+						chance = tonumber(v.Chance) or 100,
 						weapon = weapon,
 						armor = armor,
 						traits = bits,
@@ -1070,6 +1075,7 @@ function Flow.oreInfo(name)
 	return cache[name]
 		or {
 			mult = 0,
+			chance = 100,
 			weapon = false,
 			armor = false,
 			traits = {},
@@ -1481,6 +1487,213 @@ function Flow.splitAreaOres(area)
 		end
 	end
 	return wep, arm, fill, skip
+end
+
+function Flow.questBook()
+	if Flow._questBook then
+		return Flow._questBook
+	end
+	local book
+	pcall(function()
+		book = require(ReplicatedStorage.Shared.Data.Quests)
+	end)
+	Flow._questBook = type(book) == "table" and book or {}
+	return Flow._questBook
+end
+
+Flow.questLines = {
+	{ prefix = "Introduction", map = 1, rank = 10 },
+	{ prefix = "Island2Quest", map = 2, rank = 20 },
+	{ prefix = "Island2Side", map = 2, rank = 420 },
+	{ prefix = "GoblinKingQuest", map = 2, rank = 26 },
+	{ prefix = "CaptainRowanQuest", map = 2, rank = 28 },
+	{ prefix = "BjornQuest", map = 3, rank = 40 },
+	{ prefix = "SenseiMoro3Quest", map = 3, rank = 50 },
+	{ prefix = "SenseiMoro4Quest", map = 4, rank = 60 },
+	{ prefix = "ShogunQuest", map = 4, rank = 70 },
+	{ prefix = "RavenQuest", map = 3, rank = 200 },
+	{ prefix = "MazeQuest", map = 3, rank = 210 },
+	{ prefix = "SilasQuest", map = 4, rank = 220 },
+	{ prefix = "GoblinLordQuest", map = 2, rank = 230 },
+	{ prefix = "SkalQuest", map = 2, rank = 240 },
+	{ prefix = "BardQuest", map = 2, rank = 250 },
+	{ prefix = "TomoQuest", map = 2, rank = 260 },
+	{ prefix = "IceManQuest", map = 3, rank = 270 },
+	{ prefix = "MorvethQuest", map = 3, rank = 280 },
+	{ prefix = "MjelatkhanQuest", map = 3, rank = 290 },
+	{ prefix = "AuronQuest", map = 3, rank = 300 },
+	{ prefix = "MonkeQuest", map = 2, rank = 310 },
+	{ prefix = "LocalEasterEgg", map = 2, rank = 320 },
+	{ prefix = "Mining", map = 1, rank = 330 },
+	{ prefix = "Zombie", map = 1, rank = 340 },
+	{ prefix = "Daily", map = 0, rank = 800 },
+	{ prefix = "Weekly", map = 0, rank = 850 },
+	{ prefix = "Christmas", map = 0, rank = 900 },
+}
+
+function Flow.questLineInfo(id)
+	if type(id) ~= "string" then
+		return nil, 0, 500
+	end
+	for _, line in ipairs(Flow.questLines) do
+		if string.sub(id, 1, #line.prefix) == line.prefix then
+			return line.prefix, line.map, line.rank
+		end
+	end
+	return nil, 0, 400
+end
+
+function Flow.questPriority(id)
+	local _, map, rank = Flow.questLineInfo(id)
+	local n = tonumber(string.match(id, "(%d+)$"))
+	if string.find(id, "Final", 1, true) then
+		n = 99
+	end
+	if string.find(id, "Side", 1, true) then
+		rank = rank + 400
+	end
+	return (rank or 400) + (n or 0), map
+end
+
+function Flow.oreDropWeight(name)
+	local chance = Flow.oreInfo(name).chance or 100
+	if chance <= 0 then
+		return 0
+	end
+	return 1 / chance
+end
+
+function Flow.rockOreChance(rock, ore)
+	local list = Flow.rockOres[rock]
+	if not list then
+		return 0
+	end
+	local has = false
+	local sum = 0
+	for _, name in ipairs(list) do
+		if name == ore then
+			has = true
+		end
+		sum = sum + Flow.oreDropWeight(name)
+	end
+	if not has or sum <= 0 then
+		return 0
+	end
+	return Flow.oreDropWeight(ore) / sum
+end
+
+function Flow.mapRockSet(mapId)
+	local set = {}
+	for _, map in ipairs(Flow.maps or {}) do
+		if map.id == mapId then
+			for _, name in ipairs(map.rocks or {}) do
+				set[name] = true
+			end
+		end
+	end
+	return set
+end
+
+function Flow.isKnownOre(name)
+	if name == "Ore" then
+		return true
+	end
+	for _, ores in pairs(Flow.rockOres) do
+		for _, ore in ipairs(ores) do
+			if ore == name then
+				return true
+			end
+		end
+	end
+	return false
+end
+
+function Flow.bestRockForOre(ore)
+	local here = Flow.placeMap[game.PlaceId]
+	local localRocks = Flow.mapRockSet(here)
+	local best
+	local bestP = -1
+	local fallback
+	local fallbackP = -1
+	local function canMine(rock)
+		if type(Flow.canMineType) ~= "function" then
+			return true
+		end
+		return Flow.canMineType(rock)
+	end
+	local function consider(rock, onlyLocal)
+		if onlyLocal and next(localRocks) and not localRocks[rock] then
+			return
+		end
+		if rock == "Lucky Block" then
+			return
+		end
+		local p = Flow.rockOreChance(rock, ore)
+		if p <= 0 then
+			return
+		end
+		if canMine(rock) then
+			if not best or p > bestP then
+				best = rock
+				bestP = p
+			end
+		elseif not fallback or p > fallbackP then
+			fallback = rock
+			fallbackP = p
+		end
+	end
+	for rock in pairs(Flow.rockOres) do
+		consider(rock, true)
+	end
+	if not best then
+		for rock in pairs(Flow.rockOres) do
+			consider(rock, false)
+		end
+	end
+	if best then
+		return best, bestP
+	end
+	return fallback, fallbackP
+end
+
+function Flow.objDone(prog)
+	if type(prog) ~= "table" then
+		return false
+	end
+	local cur = tonumber(prog.currentProgress) or 0
+	local need = tonumber(prog.requiredAmount)
+	if not need then
+		return cur > 0
+	end
+	return cur >= need
+end
+
+function Flow.miningNow()
+	if state.questOn and Flow.questJob then
+		return Flow.questJob.kind == "mine"
+	end
+	return state.mineOn == true
+end
+
+function Flow.huntingNow()
+	if state.questOn and Flow.questJob then
+		return Flow.questJob.kind == "hunt"
+	end
+	return state.huntOn == true
+end
+
+function Flow.wantRock(name)
+	if state.questOn and Flow.questJob and Flow.questJob.kind == "mine" then
+		return Flow.questJob.rocks and Flow.questJob.rocks[name] == true
+	end
+	return state.selected[name] == true
+end
+
+function Flow.wantMob(kind)
+	if state.questOn and Flow.questJob and Flow.questJob.kind == "hunt" then
+		return Flow.questJob.mobs and Flow.questJob.mobs[kind] == true
+	end
+	return state.huntSel[kind] == true
 end
 
 Flow.guideMaps = {
@@ -2083,6 +2296,10 @@ function Flow.sellLabel(name)
 	return Flow.zhSell[name] or Flow.zh[name] or name
 end
 
+function Flow.itemLabel(name)
+	return Flow.zh[name] or Flow.zhMob[name] or Flow.zhSell[name] or name
+end
+
 function Flow.buildSellCatalog()
 	Flow.sellItems = {}
 	local seen = {}
@@ -2229,7 +2446,7 @@ local function bindFarm()
 		if not rf then
 			return false
 		end
-		if not state.mineOn then
+		if not Flow.miningNow() then
 			local tool = Flow.getWeapon()
 			local hum = Flow.hum()
 			if tool and hum and tool.Parent ~= player.Character then
@@ -2295,7 +2512,7 @@ local function bindFarm()
 			return false
 		end
 		local kind = Flow.mobType(model)
-		if not kind or not state.huntSel[kind] then
+		if not kind or not Flow.wantMob(kind) then
 			return false
 		end
 		local hum = model:FindFirstChildOfClass("Humanoid")
@@ -2338,6 +2555,9 @@ local function bindFarm()
 	end
 
 	function Flow.hasHuntSel()
+		if state.questOn and Flow.questJob and Flow.questJob.kind == "hunt" then
+			return Flow.questJob.mobs and next(Flow.questJob.mobs) ~= nil
+		end
 		for _, on in pairs(state.huntSel) do
 			if on then
 				return true
@@ -2423,6 +2643,29 @@ local function bindFarm()
 		return part and part.Position or nil
 	end
 
+	function Flow.npcModel(name)
+		if type(name) ~= "string" or name == "" then
+			return nil
+		end
+		local prox = workspace:FindFirstChild("Proximity")
+		if prox then
+			local m = prox:FindFirstChild(name)
+			if m then
+				return m
+			end
+		end
+		return Flow.shopModel(name)
+	end
+
+	function Flow.npcPos(name)
+		local m = Flow.npcModel(name)
+		if not m then
+			return nil
+		end
+		local part = m.PrimaryPart or m:FindFirstChild("HumanoidRootPart") or m:FindFirstChildWhichIsA("BasePart", true)
+		return part and part.Position or nil
+	end
+
 	function Flow.potionTool(id)
 		local char = player.Character
 		if char then
@@ -2447,7 +2690,7 @@ local function bindFarm()
 			return
 		end
 		local tool
-		if state.huntOn and not state.mineOn then
+		if Flow.huntingNow() and not Flow.miningNow() then
 			tool = Flow.getWeapon()
 		else
 			tool = Flow.getPickaxe()
@@ -2764,7 +3007,7 @@ local function bindFarm()
 	end
 
 	function Flow.farmOn()
-		return state.mineOn or state.huntOn
+		return state.mineOn or state.huntOn or state.questOn
 	end
 
 	function Flow.sellInterval()
@@ -2979,7 +3222,7 @@ local function bindFarm()
 		if not (model and model.Parent) then
 			return false
 		end
-		if not state.selected[model.Name] then
+		if not Flow.wantRock(model.Name) then
 			return false
 		end
 		local hp = tonumber(model:GetAttribute("Health")) or 0
@@ -3188,7 +3431,7 @@ local function bindFarm()
 		local bestD = nil
 		local blocked = 0
 		Flow.eachRock(function(model)
-			if not state.selected[model.Name] then
+			if not Flow.wantRock(model.Name) then
 				return
 			end
 			local hp = tonumber(model:GetAttribute("Health")) or 0
@@ -3224,7 +3467,7 @@ local function bindFarm()
 	function Flow.countReady()
 		local n = 0
 		Flow.eachRock(function(model)
-			if state.selected[model.Name] and (tonumber(model:GetAttribute("Health")) or 0) > 0 then
+			if Flow.wantRock(model.Name) and (tonumber(model:GetAttribute("Health")) or 0) > 0 then
 				n = n + 1
 			end
 		end)
@@ -3232,6 +3475,9 @@ local function bindFarm()
 	end
 
 	function Flow.hasAnySelected()
+		if state.questOn and Flow.questJob and Flow.questJob.kind == "mine" then
+			return Flow.questJob.rocks and next(Flow.questJob.rocks) ~= nil
+		end
 		for _, on in pairs(state.selected) do
 			if on then
 				return true
@@ -3256,18 +3502,33 @@ local function bindFarm()
 			local look = Flow.sellerPos()
 			return dest, look or dest.Position, "sell"
 		end
+		if state.questOn and Flow.questJob then
+			local job = Flow.questJob
+			if job.kind == "talk" and job.npc then
+				local pos = Flow.npcPos(job.npc)
+				if pos then
+					return CFrame.new(pos + Vector3.new(0, 4, 0)), pos, "talk"
+				end
+			end
+			if job.kind == "shop" and job.shop then
+				local pos = Flow.shopPos(job.shop)
+				if pos then
+					return CFrame.new(pos + Vector3.new(0, 5, 0)), pos, "shop"
+				end
+			end
+		end
 		if Flow.buyName and Flow.shopPos(Flow.buyName) then
 			local pos = Flow.shopPos(Flow.buyName)
 			return CFrame.new(pos + Vector3.new(0, 5, 0)), pos, "buy"
 		end
-		if state.huntOn and Flow.aliveHunt(Flow.huntTarget) then
+		if Flow.huntingNow() and Flow.aliveHunt(Flow.huntTarget) then
 			local dest = Flow.huntStandCF(Flow.huntTarget)
 			local look = Flow.mobCenter(Flow.huntTarget)
 			if dest and look then
 				return dest, look, "hunt"
 			end
 		end
-		if state.mineOn and Flow.aliveTarget(Flow.target) then
+		if Flow.miningNow() and Flow.aliveTarget(Flow.target) then
 			local dest = Flow.standCF(Flow.target)
 			local look = Flow.centerOf(Flow.target)
 			if dest and look then
@@ -3283,7 +3544,7 @@ local function bindFarm()
 			return
 		end
 		local dest, look = Flow.flyJob()
-		if state.mineOn and Flow.target then
+		if Flow.miningNow() and Flow.target then
 			pcall(Flow.pinCrit, Flow.target)
 		end
 		if not dest then
@@ -3379,15 +3640,17 @@ local function bindFarm()
 	end
 
 	function Flow.tickMine()
-		if state.huntOn or Flow.buyName or Flow.sellFly then
+		if Flow.huntingNow() or Flow.buyName or Flow.sellFly then
 			Flow.stopHold()
 			return
 		end
-		if not state.mineOn then
+		if not Flow.miningNow() then
 			Flow.stopHold()
 			Flow.target = nil
 			Flow.arriveAt = 0
-			state.status = "待机"
+			if not state.questOn then
+				state.status = "待机"
+			end
 			return
 		end
 		if not Flow.hasAnySelected() then
@@ -3444,7 +3707,7 @@ local function bindFarm()
 	end
 
 	function Flow.tickHunt()
-		if not state.huntOn then
+		if not Flow.huntingNow() then
 			Flow.huntTarget = nil
 			return
 		end
@@ -3469,13 +3732,520 @@ local function bindFarm()
 			return
 		end
 		state.status = "攻击 " .. Flow.mobLabel(kind)
-		if state.mineOn then
+		if Flow.miningNow() then
 			Flow.stopHold()
 		end
 	end
 
+	function Flow.liveQuests()
+		local data = Flow.replicaData()
+		local q = data and data.Quests
+		return type(q) == "table" and q or {}
+	end
+
+	function Flow.objTypeOf(prog, def)
+		if type(prog) == "table" then
+			local t = prog.questType or prog.Type or prog.type
+			if type(t) == "string" and t ~= "" then
+				return t
+			end
+		end
+		if type(def) == "table" and type(def.Type) == "string" then
+			return def.Type
+		end
+		return ""
+	end
+
+	function Flow.objTargetOf(prog, def)
+		if type(prog) == "table" then
+			local t = prog.target or prog.Target
+			if type(t) == "string" and t ~= "" then
+				return t
+			end
+		end
+		if type(def) == "table" and type(def.Target) == "string" then
+			return def.Target
+		end
+		return nil
+	end
+
+	function Flow.progKeys(progress)
+		local keys = {}
+		if type(progress) ~= "table" then
+			return keys
+		end
+		for k in pairs(progress) do
+			local n = tonumber(k)
+			if n then
+				keys[#keys + 1] = n
+			end
+		end
+		table.sort(keys)
+		return keys
+	end
+
+	function Flow.firstOpenObj(id, live)
+		local book = Flow.questBook()[id]
+		local objs = book and book.Objectives
+		local progress = live and live.Progress
+		if type(progress) ~= "table" then
+			return nil
+		end
+		local keys = Flow.progKeys(progress)
+		for _, i in ipairs(keys) do
+			local prev = progress[i - 1]
+			if i > 1 and prev and not Flow.objDone(prev) then
+			elseif not Flow.objDone(progress[i]) then
+				return i, progress[i], objs and objs[i]
+			end
+		end
+		return nil
+	end
+
+	function Flow.mobOnMap(name, mapId)
+		local list = Flow.mobsByMap[mapId]
+		if not list then
+			return true
+		end
+		for _, mob in ipairs(list) do
+			if mob == name then
+				return true
+			end
+		end
+		return false
+	end
+
+	function Flow.oreOnMap(ore, mapId)
+		local rocks = Flow.mapRockSet(mapId)
+		if not next(rocks) then
+			return Flow.bestRockForOre(ore) ~= nil
+		end
+		for rock in pairs(rocks) do
+			if Flow.rockOreChance(rock, ore) > 0 then
+				return true
+			end
+		end
+		return false
+	end
+
+	function Flow.questFitsHere(id, live)
+		local here = Flow.placeMap[game.PlaceId]
+		local _, lineMap = Flow.questLineInfo(id)
+		local idx, prog, def = Flow.firstOpenObj(id, live)
+		if not idx then
+			return false
+		end
+		local typ = Flow.objTypeOf(prog, def)
+		local target = Flow.objTargetOf(prog, def)
+		if typ == "Mine" then
+			return here ~= nil and Flow.mapRockSet(here)[target] == true
+		end
+		if typ == "Kill" then
+			return Flow.mobOnMap(target, here)
+		end
+		if typ == "Collect" then
+			if target == "Ore" then
+				return true
+			end
+			if target and Flow.isKnownOre(target) then
+				return Flow.oreOnMap(target, here)
+			end
+			return Flow.shopModel(target) ~= nil or Flow.npcModel(target) ~= nil
+		end
+		if typ == "Talk" then
+			return Flow.npcModel(target) ~= nil
+		end
+		if typ == "Extra" then
+			if target and Flow.isKnownOre(target) and target ~= "Ore" then
+				return Flow.oreOnMap(target, here)
+			end
+			if target and target ~= "None" then
+				return Flow.npcModel(target) ~= nil
+			end
+		end
+		if lineMap ~= 0 and here and lineMap ~= here then
+			return false
+		end
+		return true
+	end
+
+	function Flow.oreFarmRocks()
+		local here = Flow.placeMap[game.PlaceId]
+		local set = {}
+		local user = {}
+		local function take(name)
+			if name and name ~= "Lucky Block" then
+				set[name] = true
+			end
+		end
+		for _, map in ipairs(Flow.maps or {}) do
+			if map.id == here then
+				for _, name in ipairs(map.rocks or {}) do
+					if state.selected[name] and name ~= "Lucky Block" then
+						user[name] = true
+					end
+				end
+				if next(user) then
+					return user
+				end
+				for _, name in ipairs(map.rocks or {}) do
+					take(name)
+				end
+			end
+		end
+		if next(set) then
+			return set
+		end
+		for rock in pairs(Flow.rockOres or {}) do
+			take(rock)
+		end
+		return set
+	end
+
+	function Flow.buildQuestJob(id, live)
+		local idx, prog, def = Flow.firstOpenObj(id, live)
+		if not idx then
+			return nil
+		end
+		local typ = Flow.objTypeOf(prog, def)
+		local target = Flow.objTargetOf(prog, def)
+		local book = Flow.questBook()[id]
+		local title = book and book.Name or id
+		local cur = tonumber(prog and prog.currentProgress) or 0
+		local need = tonumber(prog and prog.requiredAmount)
+		local frac = need and (tostring(math.min(cur, need)) .. "/" .. tostring(need)) or nil
+		local job = {
+			kind = "wait",
+			questId = id,
+			objIndex = idx,
+			typ = typ,
+			target = target,
+			label = title,
+		}
+		if typ == "Mine" and target then
+			job.kind = "mine"
+			job.rocks = { [target] = true }
+			job.label = "任务挖 " .. Flow.rockLabel(target) .. (frac and (" " .. frac) or "")
+			return job
+		end
+		if typ == "Collect" and target then
+			if target == "Ore" then
+				job.kind = "mine"
+				job.rocks = Flow.oreFarmRocks()
+				job.label = "任务收矿石" .. (frac and (" " .. frac) or "")
+				return job
+			end
+			if Flow.isKnownOre(target) then
+				local rock = Flow.bestRockForOre(target)
+				if rock then
+					job.kind = "mine"
+					job.rocks = { [rock] = true }
+					job.label = "任务挖" .. Flow.itemLabel(target) .. " · " .. Flow.rockLabel(rock) .. (frac and (" " .. frac) or "")
+					return job
+				end
+				job.label = "当前图挖不到 " .. Flow.itemLabel(target)
+				return job
+			end
+			job.kind = "shop"
+			job.shop = target
+			job.label = "任务买 " .. Flow.itemLabel(target)
+			return job
+		end
+		if typ == "Kill" and target then
+			job.kind = "hunt"
+			job.mobs = { [target] = true }
+			job.label = "任务打 " .. Flow.mobLabel(target) .. (frac and (" " .. frac) or "")
+			return job
+		end
+		if typ == "Talk" and target then
+			job.kind = "talk"
+			job.npc = target
+			job.label = "任务对话 " .. target
+			return job
+		end
+		if typ == "Equip" or typ == "EquipWeapon" then
+			job.kind = "equip"
+			job.tool = (target == "Weapon" or typ == "EquipWeapon") and "Weapon" or "Pickaxe"
+			job.label = "任务装备 " .. (target or job.tool)
+			return job
+		end
+		if typ == "UI" then
+			job.kind = "ui"
+			job.label = "要手动：打开 " .. tostring(target or "")
+			return job
+		end
+		if typ == "Extra" and target then
+			if Flow.isKnownOre(target) and target ~= "Ore" then
+				local rock = Flow.bestRockForOre(target)
+				if rock then
+					job.kind = "mine"
+					job.rocks = { [rock] = true }
+					job.label = "任务挖" .. Flow.itemLabel(target) .. " · " .. Flow.rockLabel(rock)
+					return job
+				end
+			end
+			if target ~= "None" and Flow.npcModel(target) then
+				job.kind = "talk"
+				job.npc = target
+				job.label = "任务对话 " .. target
+				return job
+			end
+		end
+		local tip = ({
+			Forge = "锻造",
+			Sell = "出售",
+			Enhance = "强化",
+			RuneAttach = "镶嵌符文",
+			RuneApply = "镶嵌符文",
+			Craft = "合成",
+			Extra = "额外步骤",
+		})[typ] or typ
+		job.label = "要手动：" .. tip .. (target and (" " .. Flow.itemLabel(target)) or "")
+		return job
+	end
+
+	function Flow.pickQuestJob()
+		local bestPri
+		local best
+		for id, live in pairs(Flow.liveQuests()) do
+			if type(id) == "string" and type(live) == "table" and Flow.questFitsHere(id, live) then
+				local job = Flow.buildQuestJob(id, live)
+				if job then
+					local pri = Flow.questPriority(id)
+					if not bestPri or pri < bestPri then
+						bestPri = pri
+						best = job
+					end
+				end
+			end
+		end
+		return best
+	end
+
+	function Flow.sameQuestJob(a, b)
+		return a
+			and b
+			and a.questId == b.questId
+			and a.objIndex == b.objIndex
+			and a.kind == b.kind
+			and a.target == b.target
+	end
+
+	function Flow.trackQuest(id)
+		if not id or Flow._trackedQuest == id then
+			return
+		end
+		Flow._trackedQuest = id
+		pcall(function()
+			local knit = require(ReplicatedStorage.Shared.Packages.Knit)
+			local svc = knit.GetService("QuestService")
+			if svc and svc.ClientTrackQuest then
+				local p = svc:ClientTrackQuest(id)
+				if p and p.await then
+					p:await()
+				end
+			end
+		end)
+	end
+
+	function Flow.clickDialogueAny()
+		local gui = playerGui:FindFirstChild("DialogueUI")
+		if not (gui and gui.Enabled) then
+			return false
+		end
+		local bill = gui:FindFirstChild("ResponseBillboard")
+		local list = bill and bill:FindFirstChild("List")
+		if not list then
+			return false
+		end
+		for _, fr in ipairs(list:GetChildren()) do
+			local btn = fr:FindFirstChild("Button")
+			if btn and btn:IsA("GuiButton") then
+				pcall(function()
+					if type(getconnections) == "function" then
+						for _, conn in ipairs(getconnections(btn.MouseButton1Click)) do
+							if conn.Fire then
+								conn:Fire()
+							end
+						end
+					end
+				end)
+				pcall(function()
+					btn:Activate()
+				end)
+				return true
+			end
+		end
+		return false
+	end
+
+	function Flow.fireNpcTalk(name)
+		local npc = Flow.npcModel(name)
+		if not npc then
+			return false
+		end
+		local prompt = npc:FindFirstChildWhichIsA("ProximityPrompt", true)
+		if prompt then
+			pcall(function()
+				local fire = grab("fireproximityprompt")
+				if type(fire) == "function" then
+					fire(prompt)
+				end
+			end)
+			pcall(function()
+				prompt:InputHoldBegin()
+			end)
+			pcall(function()
+				prompt:InputHoldEnd()
+			end)
+		end
+		pcall(function()
+			local knit = require(ReplicatedStorage.Shared.Packages.Knit)
+			local prox = knit.GetService("ProximityService")
+			if prox and prox.ForceDialogue then
+				prox:ForceDialogue(npc):await()
+			end
+		end)
+		local dialogues = ReplicatedStorage:FindFirstChild("Dialogues")
+		local folder = dialogues and dialogues:FindFirstChild(name)
+		local bind = ReplicatedStorage:FindFirstChild("DialogueBindable", true)
+		if folder and bind then
+			local tree = folder:FindFirstChildWhichIsA("Folder") or folder:FindFirstChildWhichIsA("ModuleScript")
+			pcall(function()
+				bind:Fire(tree or folder, {
+					Speaker = name,
+					SpeakerCharacter = npc,
+					Range = 40,
+					Position = Flow.npcPos(name),
+				})
+			end)
+		end
+		return true
+	end
+
+	function Flow.doQuestTalk(job)
+		local pos = Flow.npcPos(job.npc)
+		if not pos then
+			state.status = "找不到 " .. tostring(job.npc)
+			return
+		end
+		local hrp = Flow.hrp()
+		if hrp and (hrp.Position - pos).Magnitude > 12 then
+			state.status = "去对话 " .. tostring(job.npc)
+			return
+		end
+		state.status = job.label
+		Flow.clickDialogueAny()
+		if os.clock() - (Flow.questTalkAt or 0) < 1.1 then
+			return
+		end
+		Flow.questTalkAt = os.clock()
+		Flow.fireNpcTalk(job.npc)
+	end
+
+	function Flow.doQuestShop(job)
+		local pos = Flow.shopPos(job.shop)
+		if not pos then
+			state.status = "找不到商店 " .. Flow.itemLabel(job.shop)
+			return
+		end
+		local hrp = Flow.hrp()
+		if hrp and (hrp.Position - pos).Magnitude > 9 then
+			state.status = "去买 " .. Flow.itemLabel(job.shop)
+			return
+		end
+		if os.clock() - (Flow.questTalkAt or 0) < 1.2 then
+			state.status = "购买 " .. Flow.itemLabel(job.shop)
+			return
+		end
+		Flow.questTalkAt = os.clock()
+		state.status = "购买 " .. Flow.itemLabel(job.shop)
+		Flow.buyPotion(job.shop, 1)
+	end
+
+	function Flow.doQuestEquip(job)
+		local hum = Flow.hum()
+		local tool = job.tool == "Weapon" and Flow.getWeapon() or Flow.getPickaxe()
+		if tool and hum then
+			pcall(function()
+				hum:EquipTool(tool)
+			end)
+			state.status = job.label
+			return
+		end
+		state.status = "要手动：装备 " .. tostring(job.target or job.tool)
+	end
+
+	function Flow.doQuestUi(job)
+		pcall(function()
+			local knit = require(ReplicatedStorage.Shared.Packages.Knit)
+			local svc = knit.GetService("QuestService")
+			if svc and svc.ProgressUIQuest then
+				local p = svc:ProgressUIQuest(job.questId, job.objIndex)
+				if p and p.await then
+					p:await()
+				end
+			end
+		end)
+		state.status = job.label
+	end
+
+	function Flow.tickQuest()
+		if not state.questOn then
+			if Flow.questJob then
+				Flow.questJob = nil
+				Flow._trackedQuest = nil
+			end
+			return
+		end
+		if Flow.buyName or Flow.sellFly or Flow.sellTalk then
+			return
+		end
+		local job = Flow.pickQuestJob()
+		if not job then
+			Flow.questJob = nil
+			state.status = "当前图没有进行中任务"
+			return
+		end
+		if not Flow.sameQuestJob(Flow.questJob, job) then
+			Flow.target = nil
+			Flow.huntTarget = nil
+			Flow.arriveAt = 0
+			Flow.questJob = job
+			Flow.trackQuest(job.questId)
+		else
+			Flow.questJob = job
+		end
+		if job.kind == "mine" or job.kind == "hunt" then
+			if state.status == "待机" or state.status == "当前图没有进行中任务" then
+				state.status = job.label
+			end
+			return
+		end
+		if job.kind == "talk" then
+			Flow.doQuestTalk(job)
+			return
+		end
+		if job.kind == "shop" then
+			Flow.doQuestShop(job)
+			return
+		end
+		if job.kind == "equip" then
+			Flow.doQuestEquip(job)
+			return
+		end
+		if job.kind == "ui" then
+			Flow.doQuestUi(job)
+			return
+		end
+		state.status = job.label
+	end
+
 	function Flow.tickPot()
 		if Flow.sellFly or Flow.sellTalk then
+			return
+		end
+		if state.questOn and Flow.questJob and (Flow.questJob.kind == "talk" or Flow.questJob.kind == "shop") then
 			return
 		end
 		if not state.potOn then
@@ -3515,7 +4285,7 @@ local function bindFarm()
 		end
 		Flow.buyName = nil
 		if not picked then
-			if not (state.mineOn or state.huntOn) then
+			if not (state.mineOn or state.huntOn or state.questOn) then
 				state.status = "先选药水"
 			end
 		end
@@ -3670,7 +4440,7 @@ local function bindFarm()
 		if Flow.sellTalk then
 			return
 		end
-		if not (state.mineOn or state.huntOn or Flow.buyName or Flow.sellFly) then
+		if not (Flow.farmOn() or Flow.buyName or Flow.sellFly) then
 			Flow.restoreCamOcclusion()
 			return
 		end
@@ -3720,15 +4490,17 @@ local function bindFarm()
 
 	task.spawn(function()
 		while stillMine() do
-			if state.mineOn then
+			if Flow.miningNow() then
 				local ok, err = pcall(Flow.tickMine)
 				if not ok then
 					state.status = tostring(err)
 				end
 				task.wait(0.12)
 			else
-				Flow.target = nil
-				if not (state.huntOn or state.potOn) and (string.find(state.status, "挖掘") or string.find(state.status, "飞向") or string.find(state.status, "到位")) then
+				if not state.questOn then
+					Flow.target = nil
+				end
+				if not (state.huntOn or state.potOn or state.questOn) and (string.find(state.status, "挖掘") or string.find(state.status, "飞向") or string.find(state.status, "到位")) then
 					state.status = "待机"
 				end
 				task.wait(0.2)
@@ -3738,15 +4510,32 @@ local function bindFarm()
 
 	task.spawn(function()
 		while stillMine() do
-			if state.huntOn then
+			if Flow.huntingNow() then
 				local ok, err = pcall(Flow.tickHunt)
 				if not ok then
 					state.status = tostring(err)
 				end
 				task.wait(0.12)
 			else
-				Flow.huntTarget = nil
+				if not state.questOn then
+					Flow.huntTarget = nil
+				end
 				task.wait(0.2)
+			end
+		end
+	end)
+
+	task.spawn(function()
+		while stillMine() do
+			if state.questOn then
+				local ok, err = pcall(Flow.tickQuest)
+				if not ok then
+					state.status = tostring(err)
+				end
+				task.wait(0.4)
+			else
+				Flow.questJob = nil
+				task.wait(0.3)
 			end
 		end
 	end)
@@ -3783,8 +4572,8 @@ local function bindFarm()
 
 	task.spawn(function()
 		while stillMine() do
-			local mineSwing = state.mineOn and state.atkOn
-			local huntSwing = state.huntOn and Flow.aliveHunt(Flow.huntTarget) and Flow.atHuntStand(Flow.huntTarget)
+			local mineSwing = Flow.miningNow() and state.atkOn
+			local huntSwing = Flow.huntingNow() and Flow.aliveHunt(Flow.huntTarget) and Flow.atHuntStand(Flow.huntTarget)
 			if (mineSwing or huntSwing) and not Flow.swingBusy then
 				Flow.swingBusy = true
 				task.spawn(function()
@@ -4470,10 +5259,22 @@ local function bindUi()
 	atkHint.Size = UDim2.new(1, 0, 0, 18)
 	atkHint.LayoutOrder = 3
 	atkHint.Parent = scroll
+	local questBtn = mkBtn(scroll, "自动任务", 4)
+	local questHint = Instance.new("TextLabel")
+	questHint.BackgroundTransparency = 1
+	questHint.Font = Enum.Font.Gotham
+	questHint.Text = "只做当前地图已接的任务，主线优先。挖矿/指定矿石/杀怪会套用左边飞行和站位；不用先开自动挖矿或打怪。"
+	questHint.TextColor3 = C.dim
+	questHint.TextSize = 11
+	questHint.TextXAlignment = Enum.TextXAlignment.Left
+	questHint.TextWrapped = true
+	questHint.Size = UDim2.new(1, 0, 0, 28)
+	questHint.LayoutOrder = 5
+	questHint.Parent = scroll
 	local nums = Instance.new("Frame")
 	nums.BackgroundTransparency = 1
 	nums.Size = UDim2.new(1, 0, 0, 40)
-	nums.LayoutOrder = 4
+	nums.LayoutOrder = 6
 	nums.Parent = scroll
 	local speedRow = mkRow(nums, "飞行速度", tostring(state.flySpeed), 1, UDim2.new(0.32, 0, 1, 0))
 	local distRow = mkRow(nums, "站位距离", tostring(state.standDist), 2, UDim2.new(0.32, 0, 1, 0))
@@ -4506,7 +5307,7 @@ local function bindUi()
 	hint.TextXAlignment = Enum.TextXAlignment.Left
 	hint.TextWrapped = true
 	hint.Size = UDim2.new(1, 0, 0, 28)
-	hint.LayoutOrder = 5
+	hint.LayoutOrder = 7
 	hint.Parent = scroll
 
 	local function selectedCount(map)
@@ -5842,7 +6643,7 @@ local function bindUi()
 			Flow.stopHold()
 			Flow.target = nil
 			Flow.arriveAt = 0
-			if not (state.huntOn or state.potOn or state.sellOn) then
+			if not (state.huntOn or state.potOn or state.sellOn or state.questOn) then
 				Flow.setFlyBody(false)
 				state.status = "待机"
 			end
@@ -5854,12 +6655,35 @@ local function bindUi()
 		state.atkOn = not state.atkOn
 		paintOn(atkBtn, state.atkOn, "打怪")
 	end)
+	questBtn.MouseButton1Click:Connect(function()
+		state.questOn = not state.questOn
+		paintOn(questBtn, state.questOn, "自动任务")
+		if not state.questOn then
+			Flow.questJob = nil
+			Flow._trackedQuest = nil
+			if not Flow.miningNow() then
+				Flow.stopHold()
+				Flow.target = nil
+				Flow.arriveAt = 0
+			end
+			if not Flow.huntingNow() then
+				Flow.huntTarget = nil
+			end
+			if not (state.mineOn or state.huntOn or state.potOn or state.sellOn) then
+				Flow.setFlyBody(false)
+				state.status = "待机"
+			end
+		else
+			Flow.armSellClock()
+			state.status = "识别任务"
+		end
+	end)
 	huntBtn.MouseButton1Click:Connect(function()
 		state.huntOn = not state.huntOn
 		paintOn(huntBtn, state.huntOn, "自动打怪")
 		if not state.huntOn then
 			Flow.huntTarget = nil
-			if not (state.mineOn or state.potOn) then
+			if not (state.mineOn or state.potOn or state.questOn) then
 				state.status = "待机"
 			end
 		else
@@ -5871,7 +6695,7 @@ local function bindUi()
 		paintOn(potBtn, state.potOn, "自动喝药")
 		if not state.potOn then
 			Flow.buyName = nil
-			if not (state.mineOn or state.huntOn or state.sellOn) then
+			if not (state.mineOn or state.huntOn or state.sellOn or state.questOn) then
 				state.status = "待机"
 			end
 		end
@@ -5882,7 +6706,7 @@ local function bindUi()
 		if not state.sellOn then
 			Flow.clearSellTrip()
 			Flow.nextSellAt = 0
-			if not (state.mineOn or state.huntOn or state.potOn) then
+			if not (state.mineOn or state.huntOn or state.potOn or state.questOn) then
 				state.status = "待机"
 			end
 		elseif not Flow.hasAnySellSel() then
@@ -5930,9 +6754,11 @@ local function bindUi()
 		env._ForgeFarmGen = (tonumber(env._ForgeFarmGen) or myGen) + 1
 		state.mineOn = false
 		state.atkOn = false
+		state.questOn = false
 		state.huntOn = false
 		state.potOn = false
 		state.sellOn = false
+		Flow.questJob = nil
 		Flow.buyName = nil
 		Flow.sellFly = nil
 		Flow.sellTalk = false
@@ -5985,11 +6811,14 @@ local function bindUi()
 		while stillMine() do
 			if statusLab and statusLab.Parent then
 				local extra = ""
-				if state.mineOn then
+				if state.mineOn or (state.questOn and Flow.questJob and Flow.questJob.kind == "mine") then
 					extra = extra .. "  矿" .. tostring(Flow.countReady and Flow.countReady() or 0)
 				end
-				if state.huntOn then
+				if state.huntOn or (state.questOn and Flow.questJob and Flow.questJob.kind == "hunt") then
 					extra = extra .. "  怪"
+				end
+				if state.questOn then
+					extra = extra .. "  任"
 				end
 				if potPage.Visible then
 					pcall(Flow.refreshPotChecks)
