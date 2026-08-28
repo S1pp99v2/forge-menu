@@ -1,6 +1,6 @@
 --!nocheck
 --!nolint
-local FORGE_VERSION = "1.1.11"
+local FORGE_VERSION = "1.1.12"
 print("[Forge] boot " .. FORGE_VERSION)
 
 local function grab(name)
@@ -1815,24 +1815,37 @@ local function bindFarm()
 		return nil
 	end
 
-	function Flow.critNormal(crit)
-		if not crit then
-			return Vector3.zAxis
+	function Flow.pinCrit(model)
+		local crit = Flow.rockCrit(model)
+		local hrp = Flow.hrp()
+		local look = Flow.centerOf(model)
+		if not (crit and hrp and look) then
+			return false
 		end
-		local n = Vector3.new(tonumber(crit:GetAttribute("surfaceX")) or 0, tonumber(crit:GetAttribute("surfaceY")) or 0, tonumber(crit:GetAttribute("surfaceZ")) or 0)
-		if n.Magnitude >= 0.15 then
-			return n.Unit
+		local delta = look - hrp.Position
+		if delta.Magnitude < 0.2 then
+			return false
 		end
-		return crit.CFrame.UpVector
+		local dir = delta.Unit
+		local pos = hrp.Position + dir * 1.55
+		local up = -dir
+		local right = up:Cross(Vector3.yAxis)
+		if right.Magnitude < 0.12 then
+			right = up:Cross(Vector3.xAxis)
+		end
+		right = right.Unit
+		local back = right:Cross(up)
+		pcall(function()
+			crit.CanCollide = false
+			crit.CFrame = CFrame.fromMatrix(pos, right, up, -back)
+			crit:SetAttribute("surfaceX", dir.X)
+			crit:SetAttribute("surfaceY", dir.Y)
+			crit:SetAttribute("surfaceZ", dir.Z)
+		end)
+		return true
 	end
 
 	function Flow.standCF(model)
-		local crit = Flow.rockCrit(model)
-		if crit then
-			local look = crit.Position
-			local dist = math.max(tonumber(state.standDist) or 4.5, 2.2)
-			return Flow.lookCF(look + Flow.critNormal(crit) * dist, look)
-		end
 		local center = Flow.centerOf(model)
 		if not center then
 			return nil
@@ -2056,8 +2069,7 @@ local function bindFarm()
 		end
 		if state.mineOn and Flow.aliveTarget(Flow.target) then
 			local dest = Flow.standCF(Flow.target)
-			local crit = Flow.rockCrit(Flow.target)
-			local look = crit and crit.Position or Flow.centerOf(Flow.target)
+			local look = Flow.centerOf(Flow.target)
 			if dest and look then
 				return dest, look, "mine"
 			end
@@ -2071,6 +2083,9 @@ local function bindFarm()
 			return
 		end
 		local dest, look = Flow.flyJob()
+		if state.mineOn and Flow.target then
+			pcall(Flow.pinCrit, Flow.target)
+		end
 		if not dest then
 			Flow.setFlyBody(false)
 			return
@@ -2198,11 +2213,10 @@ local function bindFarm()
 			state.status = "等待刷新  场上" .. tostring(Flow.countReady())
 			return
 		end
-		local crit = Flow.rockCrit(Flow.target)
 		if not Flow.atStand(Flow.target) then
 			Flow.stopHold()
 			Flow.arriveAt = 0
-			state.status = (crit and "飞向暴击 " or "飞向 ") .. Flow.rockLabel(Flow.target.Name)
+			state.status = "飞向 " .. Flow.rockLabel(Flow.target.Name)
 			return
 		end
 		if Flow.arriveAt == 0 then
@@ -2211,6 +2225,10 @@ local function bindFarm()
 		if os.clock() - Flow.arriveAt < 0.2 then
 			state.status = "到位 " .. Flow.rockLabel(Flow.target.Name)
 			return
+		end
+		local crit = Flow.rockCrit(Flow.target)
+		if crit then
+			Flow.pinCrit(Flow.target)
 		end
 		state.status = (crit and "暴击 " or "挖掘 ") .. Flow.rockLabel(Flow.target.Name)
 		Flow.startHold()
