@@ -1,6 +1,6 @@
 --!nocheck
 --!nolint
-local FORGE_VERSION = "1.1.13"
+local FORGE_VERSION = "1.1.14"
 print("[Forge] boot " .. FORGE_VERSION)
 
 local function grab(name)
@@ -560,25 +560,223 @@ function Flow.rockLabel(name)
 end
 
 Flow.zhGear = {
+	Dagger = "匕首",
+	["Falchion Knife"] = "弯刀匕",
+	["Gladius Dagger"] = "短剑匕",
+	Hook = "钩刃",
+	Kunai = "苦无",
+	Tanto = "短刀",
+	Falchion = "弯刃剑",
+	Gladius = "短剑",
 	Cutlass = "弯刀",
+	Rapier = "刺剑",
 	Chaos = "混沌剑",
 	["Hell Slayer"] = "地狱屠",
 	["Crystalized Broadsword"] = "结晶阔剑",
+	["Hook Blade"] = "钩剑",
+	Chokuto = "直刀",
+	["Dragon Blade"] = "龙刃",
+	Uchigatana = "打刀",
+	Tachi = "太刀",
+	["Kurokiba-gatana"] = "黑牙太刀",
+	["Great Sword"] = "巨剑",
+	Hammer = "锤子",
+	["Dragon Slayer"] = "屠龙剑",
 	["Colossal Gemblade"] = "巨晶刃",
 	["Colossal Terrorblade"] = "巨恐刃",
-	["Dragon Slayer"] = "屠龙剑",
-	Uchigatana = "打刀",
-	["Kurokiba-gatana"] = "黑牙太刀",
-	["Knight Chestplate"] = "骑士胸甲",
-	["Dark Knight Chestplate"] = "暗骑胸甲",
-	["Raven's Chestplate"] = "鸦胸甲",
-	["Samurai Chestplate"] = "武士胸甲",
-	["Shogun's Chestplate"] = "将军胸甲",
-	["Goblin's Crown"] = "哥布林王冠",
-	["Vanguard Chestplate"] = "先锋胸甲",
+	["Dark Knight's Greatsword"] = "暗骑大剑",
+	["Grave Maker"] = "葬锤",
+	["Angelic Spear"] = "天使矛",
+	Scythe = "镰刀",
+	["Light Helmet"] = "轻盔",
+	["Light Chestplate"] = "轻胸甲",
+	["Light Leggings"] = "轻护腿",
+	["Medium Helmet"] = "中盔",
+	["Medium Chestplate"] = "中胸甲",
+	["Medium Leggings"] = "中护腿",
 	["Knight Helmet"] = "骑士盔",
+	["Knight Chestplate"] = "骑士胸甲",
+	["Knight Leggings"] = "骑士护腿",
+	["Dark Knight Helmet"] = "暗骑盔",
+	["Dark Knight Chestplate"] = "暗骑胸甲",
+	["Dark Knight Leggings"] = "暗骑护腿",
 	["Raven's Helmet"] = "鸦盔",
+	["Raven's Chestplate"] = "鸦胸甲",
+	["Raven's Leggings"] = "鸦护腿",
+	["Samurai Helmet"] = "武士盔",
+	["Samurai Chestplate"] = "武士胸甲",
+	["Samurai Leggings"] = "武士护腿",
+	["Shogun's Helmet"] = "将军盔",
+	["Shogun's Chestplate"] = "将军胸甲",
+	["Shogun's Leggings"] = "将军护腿",
+	["Ninja's Headgear"] = "忍者头",
+	["Ninja's Armor"] = "忍者甲",
+	["Ninja's Leggings"] = "忍者腿",
+	["Goblin's Crown"] = "哥布林王冠",
+	["Vanguard Helmet"] = "先锋盔",
+	["Vanguard Chestplate"] = "先锋胸甲",
+	["Vanguard Leggings"] = "先锋护腿",
 }
+
+Flow.classLock = {
+	Dagger = 3,
+	StraightSword = 9,
+	Mace = 14,
+	Gauntlet = 14,
+	Axe = 18,
+	Katana = 18,
+	GreatSword = 24,
+	Spear = 24,
+	GreatAxe = 31,
+	ColossalSword = 50,
+	LightHelmet = 3,
+	LightLeggings = 11,
+	LightChestplate = 15,
+	MediumHelmet = 20,
+	MediumLeggings = 24,
+	MediumChestplate = 30,
+	HeavyHelmet = 35,
+	HeavyLeggings = 42,
+	HeavyChestplate = 52,
+}
+
+Flow.classZh = {
+	Dagger = "匕首",
+	StraightSword = "直剑",
+	Mace = "锤",
+	Gauntlet = "拳套",
+	Axe = "斧",
+	Katana = "太刀",
+	GreatSword = "大剑",
+	Spear = "矛",
+	GreatAxe = "巨斧",
+	ColossalSword = "巨剑",
+	LightHelmet = "轻盔",
+	LightLeggings = "轻护腿",
+	LightChestplate = "轻胸甲",
+	MediumHelmet = "中盔",
+	MediumLeggings = "中护腿",
+	MediumChestplate = "中胸甲",
+	HeavyHelmet = "重盔",
+	HeavyLeggings = "重护腿",
+	HeavyChestplate = "重胸甲",
+}
+
+Flow.gearClass = {
+	Dagger = "Dagger",
+	["Falchion Knife"] = "Dagger",
+	["Gladius Dagger"] = "Dagger",
+	Hook = "Dagger",
+	Kunai = "Dagger",
+	Tanto = "Dagger",
+	Falchion = "StraightSword",
+	Gladius = "StraightSword",
+	Cutlass = "StraightSword",
+	Rapier = "StraightSword",
+	Chaos = "StraightSword",
+	["Hell Slayer"] = "StraightSword",
+	["Crystalized Broadsword"] = "StraightSword",
+	["Hook Blade"] = "StraightSword",
+	Chokuto = "StraightSword",
+	["Dragon Blade"] = "StraightSword",
+	Uchigatana = "Katana",
+	Tachi = "Katana",
+	["Kurokiba-gatana"] = "Katana",
+	["Great Sword"] = "ColossalSword",
+	Hammer = "ColossalSword",
+	["Dragon Slayer"] = "ColossalSword",
+	["Colossal Gemblade"] = "ColossalSword",
+	["Colossal Terrorblade"] = "ColossalSword",
+	["Dark Knight's Greatsword"] = "GreatSword",
+	["Grave Maker"] = "Mace",
+	["Angelic Spear"] = "Spear",
+	Scythe = "GreatAxe",
+	["Light Helmet"] = "LightHelmet",
+	["Light Chestplate"] = "LightChestplate",
+	["Light Leggings"] = "LightLeggings",
+	["Medium Helmet"] = "MediumHelmet",
+	["Medium Chestplate"] = "MediumChestplate",
+	["Medium Leggings"] = "MediumLeggings",
+	["Knight Helmet"] = "HeavyHelmet",
+	["Knight Chestplate"] = "HeavyChestplate",
+	["Knight Leggings"] = "HeavyLeggings",
+	["Dark Knight Helmet"] = "HeavyHelmet",
+	["Dark Knight Chestplate"] = "HeavyChestplate",
+	["Dark Knight Leggings"] = "HeavyLeggings",
+	["Raven's Helmet"] = "HeavyHelmet",
+	["Raven's Chestplate"] = "HeavyChestplate",
+	["Raven's Leggings"] = "HeavyLeggings",
+	["Samurai Helmet"] = "MediumHelmet",
+	["Samurai Chestplate"] = "MediumChestplate",
+	["Samurai Leggings"] = "MediumLeggings",
+	["Shogun's Helmet"] = "HeavyHelmet",
+	["Shogun's Chestplate"] = "HeavyChestplate",
+	["Shogun's Leggings"] = "HeavyLeggings",
+	["Ninja's Headgear"] = "LightHelmet",
+	["Ninja's Armor"] = "LightChestplate",
+	["Ninja's Leggings"] = "LightLeggings",
+	["Goblin's Crown"] = "HeavyHelmet",
+	["Vanguard Helmet"] = "HeavyHelmet",
+	["Vanguard Chestplate"] = "HeavyChestplate",
+	["Vanguard Leggings"] = "HeavyLeggings",
+}
+
+function Flow.forgeTotal(lock)
+	local n = tonumber(lock) or 10
+	for _, step in ipairs({ 10, 20, 30, 40, 50, 60 }) do
+		if step >= n then
+			return step
+		end
+	end
+	return 60
+end
+
+function Flow.mixCounts(mix, total)
+	local list = mix or {}
+	local sum = 0
+	for _, part in ipairs(list) do
+		sum = sum + (tonumber(part[2]) or 0)
+	end
+	if sum <= 0 or total <= 0 or #list == 0 then
+		return {}
+	end
+	local out = {}
+	local used = 0
+	for i, part in ipairs(list) do
+		local n
+		if i == #list then
+			n = math.max(1, total - used)
+		else
+			n = math.max(1, math.floor(total * part[2] / sum + 0.5))
+			if part[2] / sum >= 0.29 then
+				n = math.max(n, math.ceil(total * 0.3 - 1e-9))
+			end
+			used = used + n
+		end
+		out[i] = { part[1], n }
+	end
+	if out[#out] and out[#out][2] < 1 and out[1] then
+		out[1][2] = math.max(1, out[1][2] - 1)
+		out[#out][2] = 1
+	end
+	return out
+end
+
+function Flow.mixLine(counts)
+	local bits = {}
+	for _, part in ipairs(counts or {}) do
+		bits[#bits + 1] = Flow.sellLabel(part[1]) .. " " .. tostring(part[2]) .. "颗"
+	end
+	return table.concat(bits, " + ")
+end
+
+function Flow.mixTotal(counts)
+	local n = 0
+	for _, part in ipairs(counts or {}) do
+		n = n + (tonumber(part[2]) or 0)
+	end
+	return n
+end
 
 function Flow.gearLabel(name)
 	return Flow.zhGear[name] or Flow.zhSell[name] or Flow.zh[name] or name
@@ -594,33 +792,39 @@ Flow.guideMaps = {
 				stageName = "前期",
 				area = "铁谷 · 石子",
 				rocks = { "Pebble" },
-				tip = "石子掉石头、砂岩、铜铁和粪矿。词条要该矿至少 30% 才满。",
-				mix = { { "Iron", 70 }, { "Poopite", 30 } },
-				note = "铁铺面板，粪矿给武器和护甲臭味圈。",
-				weapon = "Cutlass",
-				armor = "Knight Chestplate",
+				tip = "石子掉石头、砂岩、铜铁和粪矿。点下面任意一把武器或一套护甲，看这炉要扔几颗。",
+				mix = { { "Iron", 7 }, { "Poopite", 3 } },
+				note = "铁铺伤害，粪矿给臭味圈。词条矿至少要占三成，所以 10 颗里粪矿固定 3 颗。",
+				weapons = { "Dagger", "Falchion Knife", "Gladius", "Falchion", "Cutlass" },
+				armorSets = {
+					{ title = "轻甲一套", items = { "Light Helmet", "Light Chestplate", "Light Leggings" } },
+				},
 			},
 			{
 				stage = "mid",
 				stageName = "中期",
 				area = "铁谷 · 岩石",
 				rocks = { "Rock" },
-				tip = "岩石开始出银、锡、香蕉矿。还没有真正的进攻词条，先堆倍率。",
-				mix = { { "Bananite", 70 }, { "Silver", 30 } },
-				note = "香蕉矿 0.85x 是这层最高倍率。",
-				weapon = "Cutlass",
-				armor = "Knight Chestplate",
+				tip = "岩石出银、锡、香蕉矿。这层几乎没进攻词条，用香蕉矿铺倍率。",
+				mix = { { "Bananite", 7 }, { "Silver", 3 } },
+				note = "香蕉矿 7 颗铺倍率，银 3 颗凑数。",
+				weapons = { "Dagger", "Gladius", "Falchion", "Cutlass", "Great Sword" },
+				armorSets = {
+					{ title = "中甲一套", items = { "Medium Helmet", "Medium Chestplate", "Medium Leggings" } },
+				},
 			},
 			{
 				stage = "late",
 				stageName = "后期",
 				area = "铁谷 · 巨石",
 				rocks = { "Boulder" },
-				tip = "巨石出金、铂、艾特。图1毕业就在这里。幸运方块的菲奇矿倍率是 0，别拿去锻。",
-				mix = { { "Gold", 70 }, { "Poopite", 30 } },
-				note = "金好卖也好铺；粪矿 30% 吃满臭味。",
-				weapon = "Chaos",
-				armor = "Knight Chestplate",
+				tip = "巨石出金、铂、艾特。图1毕业。幸运方块的菲奇矿倍率是 0，别拿去锻。",
+				mix = { { "Gold", 7 }, { "Poopite", 3 } },
+				note = "金 7 颗铺面板，粪矿 3 颗吃满臭味。",
+				weapons = { "Falchion", "Cutlass", "Uchigatana", "Great Sword", "Hammer" },
+				armorSets = {
+					{ title = "骑士重甲一套", items = { "Knight Helmet", "Knight Chestplate", "Knight Leggings" } },
+				},
 			},
 		},
 	},
@@ -633,37 +837,44 @@ Flow.guideMaps = {
 				stageName = "前期",
 				area = "遗忘王国 · 玄武岩口",
 				rocks = { "Basalt Rock" },
-				tip = "玄武岩出眼矿、钴钛和青金石。眼矿是图2第一根进攻词条。",
-				mix = { { "Cobalt", 70 }, { "Eye Ore", 30 } },
-				note = "眼矿：生命-10%、增伤+15%，武器护甲都生效。",
-				weapon = "Chaos",
-				armor = "Dark Knight Chestplate",
+				tip = "玄武岩出眼矿、钴钛、青金石。眼矿是图2第一根进攻词条。",
+				mix = { { "Cobalt", 7 }, { "Eye Ore", 3 } },
+				note = "钴 7 颗铺倍率，眼矿 3 颗：生命少一点、增伤多一点。",
+				weapons = { "Hook", "Cutlass", "Rapier", "Tachi", "Great Sword" },
+				armorSets = {
+					{ title = "暗骑重甲一套", items = { "Dark Knight Helmet", "Dark Knight Chestplate", "Dark Knight Leggings" } },
+				},
 			},
 			{
 				stage = "mid",
 				stageName = "中期",
 				area = "遗忘王国 · 岩脉",
 				rocks = { "Basalt Core", "Basalt Vein" },
-				tip = "岩芯到岩脉出对决矿、秘银、铀、光矿。暴击和生存从这里分开做。",
-				mix = { { "Emerald", 70 }, { "Rivalite", 30 } },
-				note = "武器吃对决矿暴击 20%。护甲改 30% 秘银 + 30% 光矿 + 40% 绿宝石。",
-				weapon = "Hell Slayer",
-				armor = "Dark Knight Chestplate",
-				alt = { { "Mythril", 30 }, { "Lightite", 30 }, { "Emerald", 40 } },
-				altNote = "护甲备用：秘银生命、光矿移速。",
+				tip = "岩脉出对决矿、秘银、光矿。武器走暴击，护甲走生命和移速。",
+				mix = { { "Emerald", 7 }, { "Rivalite", 3 } },
+				note = "绿宝石 7 颗铺倍率，对决矿 3 颗上暴击。",
+				armorMix = { { "Emerald", 4 }, { "Mythril", 3 }, { "Lightite", 3 } },
+				armorNote = "绿宝石 4 颗铺倍率，秘银 3 颗生命，光矿 3 颗移速。",
+				weapons = { "Cutlass", "Chaos", "Tachi", "Dark Knight's Greatsword", "Dragon Slayer" },
+				armorSets = {
+					{ title = "暗骑重甲一套", items = { "Dark Knight Helmet", "Dark Knight Chestplate", "Dark Knight Leggings" } },
+					{ title = "武士中甲一套", items = { "Samurai Helmet", "Samurai Chestplate", "Samurai Leggings" } },
+				},
 			},
 			{
 				stage = "late",
 				stageName = "后期",
 				area = "火山深处 · 哥布林洞",
 				rocks = { "Volcanic Rock", "Earth Crystal", "Cyan Crystal", "Crimson Crystal", "Violet Crystal", "Light Crystal" },
-				tip = "火山出火矿、岩浆矿、恶魔矿、暗晶。水晶洞的奥术水晶 9x 没有词条，适合当填料。",
-				mix = { { "Arcane Crystal", 40 }, { "Magmaite", 30 }, { "Fireite", 30 } },
-				note = "武器：爆炸+燃烧。护甲用恶魔矿反伤着火，或黑曜石堆血。",
-				weapon = "Hell Slayer",
-				armor = "Goblin's Crown",
-				alt = { { "Obsidian", 40 }, { "Demonite", 30 }, { "Darkryte", 30 } },
-				altNote = "护甲备用：黑曜石生命、恶魔矿反伤、暗晶幻步。",
+				tip = "火山出火矿、岩浆矿、恶魔矿、暗晶。奥术水晶没有词条，只拿来凑颗数。",
+				mix = { { "Arcane Crystal", 4 }, { "Magmaite", 3 }, { "Fireite", 3 } },
+				note = "奥术水晶 4 颗铺倍率，岩浆矿 3 颗爆炸，火矿 3 颗燃烧。",
+				armorMix = { { "Obsidian", 4 }, { "Demonite", 3 }, { "Darkryte", 3 } },
+				armorNote = "黑曜石 4 颗生命，恶魔矿 3 颗反伤着火，暗晶 3 颗幻步。",
+				weapons = { "Chaos", "Hell Slayer", "Dark Knight's Greatsword", "Scythe", "Dragon Slayer" },
+				armorSets = {
+					{ title = "暗骑重甲一套", items = { "Dark Knight Helmet", "Dark Knight Chestplate", "Dark Knight Leggings" } },
+				},
 			},
 		},
 	},
@@ -677,38 +888,44 @@ Flow.guideMaps = {
 				area = "霜原 · 冰石",
 				rocks = { "Icy Pebble", "Icy Rock", "Icy Boulder" },
 				tip = "冰石出钨、石墨、以太矿、雪矿、冰矿。石墨是图3第一件盾。",
-				mix = { { "Tungsten", 40 }, { "Graphite", 30 }, { "Aetherit", 30 } },
-				note = "护甲：石墨护盾+以太移速。武器把石墨换成雪矿吃冰雪伤害。",
-				weapon = "Crystalized Broadsword",
-				armor = "Raven's Chestplate",
-				alt = { { "Tungsten", 40 }, { "Snowite", 30 }, { "Aetherit", 30 } },
-				altNote = "武器备用：雪矿下雪，以太矿加攻速。",
+				mix = { { "Tungsten", 4 }, { "Snowite", 3 }, { "Aetherit", 3 } },
+				note = "钨 4 颗铺倍率，雪矿 3 颗下雪，以太矿 3 颗攻速。",
+				armorMix = { { "Tungsten", 4 }, { "Graphite", 3 }, { "Aetherit", 3 } },
+				armorNote = "钨 4 颗，石墨 3 颗上盾，以太矿 3 颗移速。",
+				weapons = { "Crystalized Broadsword", "Hell Slayer", "Hook Blade", "Angelic Spear", "Colossal Gemblade" },
+				armorSets = {
+					{ title = "鸦骑士一套", items = { "Raven's Helmet", "Raven's Chestplate", "Raven's Leggings" } },
+				},
 			},
 			{
 				stage = "mid",
 				stageName = "中期",
 				area = "山巅 · 冰晶",
 				rocks = { "Small Ice Crystal", "Medium Ice Crystal", "Large Ice Crystal", "Floating Crystal" },
-				tip = "山巅出绯红矿、虚空星、空灵矿、巨兽矿、天堂矿。暴击刀从虚空星开始。",
-				mix = { { "Gargantuan", 40 }, { "Voidstar", 30 }, { "Crimsonite", 30 } },
-				note = "武器：巨兽爆炸着火 + 虚空星暴击 + 绯红增伤。护甲用空灵矿。",
-				weapon = "Colossal Gemblade",
-				armor = "Raven's Chestplate",
-				alt = { { "Etherealite", 40 }, { "Sanctis", 30 }, { "Velchire", 30 } },
-				altNote = "护甲备用：空灵生命、圣域体力、魔翼移速。",
+				tip = "山巅出绯红矿、虚空星、空灵矿、巨兽矿。暴击从虚空星开始。",
+				mix = { { "Gargantuan", 4 }, { "Voidstar", 3 }, { "Crimsonite", 3 } },
+				note = "巨兽 4 颗爆炸着火，虚空星 3 颗暴击，绯红矿 3 颗增伤。",
+				armorMix = { { "Etherealite", 4 }, { "Sanctis", 3 }, { "Velchire", 3 } },
+				armorNote = "空灵矿 4 颗生命，圣域 3 颗体力，魔翼 3 颗移速。",
+				weapons = { "Hell Slayer", "Crystalized Broadsword", "Grave Maker", "Angelic Spear", "Colossal Gemblade" },
+				armorSets = {
+					{ title = "鸦骑士一套", items = { "Raven's Helmet", "Raven's Chestplate", "Raven's Leggings" } },
+				},
 			},
 			{
 				stage = "late",
 				stageName = "后期",
 				area = "鸦窟 · 冰山",
 				rocks = { "Small Red Crystal", "Medium Red Crystal", "Large Red Crystal", "Heart Of The Island", "Iceberg" },
-				tip = "红晶和岛之心出失心、杜兰、岛之心。冰山只掉沧龙矿，肉但极慢。",
-				mix = { { "Gargantuan", 70 }, { "Stolen Heart", 30 } },
-				note = "武器：巨兽铺倍率，失心 30% 吸血。护甲用岛之心狂暴或杜兰盾。",
-				weapon = "Colossal Gemblade",
-				armor = "Raven's Chestplate",
-				alt = { { "Duranite", 40 }, { "Heart Of The Island", 30 }, { "Etherealite", 30 } },
-				altNote = "护甲备用：杜兰盾、岛之心狂暴、空灵生命。纯肉可 100% 沧龙矿。",
+				tip = "红晶和岛之心出失心、杜兰。冰山只掉沧龙矿，肉但极慢。",
+				mix = { { "Gargantuan", 7 }, { "Stolen Heart", 3 } },
+				note = "巨兽 7 颗铺倍率，失心 3 颗吸血。",
+				armorMix = { { "Duranite", 4 }, { "Heart Of The Island", 3 }, { "Etherealite", 3 } },
+				armorNote = "杜兰 4 颗盾，岛之心 3 颗狂暴，空灵矿 3 颗生命。",
+				weapons = { "Hell Slayer", "Crystalized Broadsword", "Grave Maker", "Colossal Gemblade", "Colossal Terrorblade" },
+				armorSets = {
+					{ title = "鸦骑士一套", items = { "Raven's Helmet", "Raven's Chestplate", "Raven's Leggings" } },
+				},
 			},
 		},
 	},
@@ -722,25 +939,31 @@ Flow.guideMaps = {
 				area = "竹洞",
 				rocks = { "Bamboo Pebble", "Bamboo Rock", "Bamboo Boulder" },
 				tip = "竹洞出缟玛瑙、虎眼石、地矿、青玉。图4第一根暴击矿是缟玛瑙。",
-				mix = { { "Onyx", 40 }, { "Tiger's Eye", 30 }, { "Magit", 30 } },
-				note = "武器：缟玛瑙暴击 + 虎眼攻速增伤（掉血）。护甲用地矿和青玉。",
-				weapon = "Uchigatana",
-				armor = "Samurai Chestplate",
-				alt = { { "Cyanite Jade", 40 }, { "Earthite", 30 }, { "Duquack", 30 } },
-				altNote = "护甲备用：青玉生命、地矿生命、鸭矿跳跃闪避。",
+				mix = { { "Onyx", 4 }, { "Tiger's Eye", 3 }, { "Magit", 3 } },
+				note = "缟玛瑙 4 颗暴击，虎眼 3 颗攻速增伤（掉血），魔力矿 3 颗凑倍率。",
+				armorMix = { { "Cyanite Jade", 4 }, { "Earthite", 3 }, { "Duquack", 3 } },
+				armorNote = "青玉 4 颗生命，地矿 3 颗生命，鸭矿 3 颗跳跃闪避。",
+				weapons = { "Kunai", "Tanto", "Chokuto", "Uchigatana", "Tachi" },
+				armorSets = {
+					{ title = "忍者轻甲一套", items = { "Ninja's Headgear", "Ninja's Armor", "Ninja's Leggings" } },
+					{ title = "武士中甲一套", items = { "Samurai Helmet", "Samurai Chestplate", "Samurai Leggings" } },
+				},
 			},
 			{
 				stage = "mid",
 				stageName = "中期",
 				area = "圣树",
 				rocks = { "Hana Pebble", "Glowy Rock", "Blossom Boulder" },
-				tip = "圣树出封咒、日石、招财猫、天球、陨石。玻璃炮和挖矿甲都在这做。",
-				mix = { { "Sun Stone", 40 }, { "Sealed Curse", 30 }, { "Onyx", 30 } },
-				note = "武器：日石火 + 封咒增伤 30%（掉血掉速）+ 缟玛瑙暴击。",
-				weapon = "Kurokiba-gatana",
-				armor = "Samurai Chestplate",
-				alt = { { "Heavenly Orb", 40 }, { "Lucky Cat", 30 }, { "Duquack", 30 } },
-				altNote = "护甲备用：天球盾和回血、招财猫幸运多掉、鸭矿机动。",
+				tip = "圣树出封咒、日石、招财猫、天球、陨石。点进去看每件要几颗。",
+				mix = { { "Sun Stone", 4 }, { "Sealed Curse", 3 }, { "Onyx", 3 } },
+				note = "日石 4 颗火，封咒 3 颗增伤（掉血掉速），缟玛瑙 3 颗暴击。",
+				armorMix = { { "Heavenly Orb", 4 }, { "Lucky Cat", 3 }, { "Duquack", 3 } },
+				armorNote = "天球 4 颗盾和回血，招财猫 3 颗幸运多掉，鸭矿 3 颗机动。",
+				weapons = { "Tanto", "Uchigatana", "Kurokiba-gatana", "Dragon Blade", "Colossal Terrorblade" },
+				armorSets = {
+					{ title = "武士中甲一套", items = { "Samurai Helmet", "Samurai Chestplate", "Samurai Leggings" } },
+					{ title = "将军重甲一套", items = { "Shogun's Helmet", "Shogun's Chestplate", "Shogun's Leggings" } },
+				},
 				craft = {
 					dest = "Kokorite",
 					parts = { { "Sealed Curse", 5 }, { "Roosite", 7 } },
@@ -753,13 +976,16 @@ Flow.guideMaps = {
 				stageName = "后期",
 				area = "灵窟 · 虚空",
 				rocks = { "Spirit Rock", "Soul Boulder", "Sakura Crystal", "Thunder Core" },
-				tip = "灵岩/魂石要灵镐。阴、阳打灵窟怪掉，合成阴阳。九尾矿打阿修罗化身。星系矿在虚空合成。",
-				mix = { { "Galaxite", 70 }, { "Kyubite", 30 } },
-				note = "毕业武器：星系矿黑洞暴击 + 九尾火。没星系矿就用阴阳 30% + 陨石 30% + 日石 40%。",
-				weapon = "Colossal Terrorblade",
-				armor = "Shogun's Chestplate",
-				alt = { { "Galaxite", 70 }, { "Sentira", 30 } },
-				altNote = "毕业护甲：星系矿盾+回血，感知矿再叠一层盾和反伤。",
+				tip = "灵岩要灵镐。阴、阳打灵窟怪。九尾矿打阿修罗化身。星系矿在虚空合成。",
+				mix = { { "Galaxite", 7 }, { "Kyubite", 3 } },
+				note = "星系矿 7 颗黑洞暴击，九尾 3 颗火。没有星系矿就改用阴阳 3 颗 + 陨石 3 颗 + 日石 4 颗。",
+				armorMix = { { "Galaxite", 7 }, { "Sentira", 3 } },
+				armorNote = "星系矿 7 颗盾和回血，感知矿 3 颗再叠盾和反伤。",
+				weapons = { "Tanto", "Kurokiba-gatana", "Dragon Blade", "Colossal Terrorblade", "Colossal Gemblade" },
+				armorSets = {
+					{ title = "将军重甲一套", items = { "Shogun's Helmet", "Shogun's Chestplate", "Shogun's Leggings" } },
+					{ title = "忍者轻甲一套", items = { "Ninja's Headgear", "Ninja's Armor", "Ninja's Leggings" } },
+				},
 				craft = {
 					dest = "Galaxite",
 					parts = { { "Anti Matter", 3 }, { "Singularity", 1 }, { "Supermassive Black Hole", 1 } },
@@ -3024,6 +3250,8 @@ local function bindUi()
 		end
 		if name == "guide" and Flow.ensureGuideIcons then
 			Flow.ensureGuideIcons()
+		elseif name ~= "guide" and Flow.hideGuideOverlay then
+			Flow.hideGuideOverlay()
 		end
 	end
 	showPage("auto")
@@ -4021,6 +4249,7 @@ local function bindUi()
 		local vf = Instance.new("ViewportFrame")
 		vf.BackgroundColor3 = Color3.fromRGB(14, 22, 32)
 		vf.BorderSizePixel = 0
+		vf.Active = false
 		vf.Size = size
 		vf.Position = pos or UDim2.fromOffset(0, 0)
 		vf.LightColor = Color3.fromRGB(255, 255, 255)
@@ -4031,13 +4260,58 @@ local function bindUi()
 		return vf
 	end
 
-	local function mkGuideCell(parent, kind, name, caption, order, extra)
-		local cell = Instance.new("Frame")
-		cell.BackgroundTransparency = 1
+	local function fillGuideTree(root)
+		if not root then
+			return
+		end
+		for _, vf in ipairs(root:GetDescendants()) do
+			if vf:IsA("ViewportFrame") then
+				local kind = vf:GetAttribute("GuideKind")
+				local name = vf:GetAttribute("GuideName")
+				if kind and name and not vf:GetAttribute("Filled") then
+					local vis = true
+					local walk = vf.Parent
+					while walk and walk ~= root do
+						if walk:IsA("GuiObject") and not walk.Visible then
+							vis = false
+							break
+						end
+						walk = walk.Parent
+					end
+					if vis then
+						vf:SetAttribute("Filled", true)
+						if kind == "Gear" then
+							fillGearIcon(vf, name, vf:GetAttribute("GuideOre"))
+						else
+							fillRockIcon(vf, name, kind)
+						end
+					end
+				end
+			end
+		end
+	end
+
+	local function mkGuideCell(parent, kind, name, caption, order, extra, click)
+		local cell
+		if click then
+			cell = Instance.new("TextButton")
+			cell.Text = ""
+			cell.AutoButtonColor = true
+			cell.BackgroundColor3 = C.off
+			cell.BackgroundTransparency = 0
+			cell.MouseButton1Click:Connect(click)
+		else
+			cell = Instance.new("Frame")
+			cell.BackgroundTransparency = 1
+		end
+		cell.BorderSizePixel = 0
 		cell.Size = UDim2.fromOffset(72, 94)
 		cell.LayoutOrder = order or 0
 		cell.Parent = parent
-		local vf = mkGuideVf(cell, UDim2.fromOffset(68, 68), UDim2.fromOffset(2, 0))
+		if click then
+			corner(cell, 6)
+		end
+		local vf = mkGuideVf(cell, UDim2.fromOffset(68, 68), UDim2.fromOffset(2, 2))
 		vf:SetAttribute("GuideKind", kind)
 		vf:SetAttribute("GuideName", name)
 		if extra then
@@ -4058,42 +4332,243 @@ local function bindUi()
 		return cell
 	end
 
+	local guideOverlay = Instance.new("ScrollingFrame")
+	guideOverlay.Name = "GuideOverlay"
+	guideOverlay.BackgroundColor3 = C.bg
+	guideOverlay.BorderSizePixel = 0
+	guideOverlay.Visible = false
+	guideOverlay.ZIndex = 70
+	guideOverlay.Size = UDim2.fromScale(1, 1)
+	guideOverlay.CanvasSize = UDim2.new(0, 0, 0, 0)
+	guideOverlay.AutomaticCanvasSize = Enum.AutomaticSize.Y
+	guideOverlay.ScrollBarThickness = 4
+	guideOverlay.ScrollBarImageColor3 = C.line
+	guideOverlay.Parent = right
+	local overList = Instance.new("UIListLayout")
+	overList.Padding = UDim.new(0, 6)
+	overList.SortOrder = Enum.SortOrder.LayoutOrder
+	overList.Parent = guideOverlay
+	local overPad = Instance.new("UIPadding")
+	overPad.PaddingTop = UDim.new(0, 4)
+	overPad.PaddingBottom = UDim.new(0, 8)
+	overPad.Parent = guideOverlay
+
+	function Flow.hideGuideOverlay()
+		guideOverlay.Visible = false
+	end
+
 	local function ensureGuideIcons()
-		if not guidePage.Visible then
-			return
+		if guidePage.Visible then
+			fillGuideTree(guidePage)
 		end
-		for _, vf in ipairs(guidePage:GetDescendants()) do
-			if vf:IsA("ViewportFrame") then
-				local kind = vf:GetAttribute("GuideKind")
-				local name = vf:GetAttribute("GuideName")
-				if kind and name and not vf:GetAttribute("Filled") then
-					local vis = true
-					local p = vf.Parent
-					while p and p ~= guidePage do
-						if p:IsA("GuiObject") and not p.Visible then
-							vis = false
-							break
-						end
-						p = p.Parent
-					end
-					if vis then
-						vf:SetAttribute("Filled", true)
-						if kind == "Gear" then
-							fillGearIcon(vf, name, vf:GetAttribute("GuideOre"))
-						else
-							fillRockIcon(vf, name, kind)
-						end
-					end
-				end
-			end
+		if guideOverlay.Visible then
+			fillGuideTree(guideOverlay)
 		end
 	end
 	Flow.ensureGuideIcons = ensureGuideIcons
 
+	local function clearOverlay()
+		for _, child in ipairs(guideOverlay:GetChildren()) do
+			if child:IsA("GuiObject") then
+				child:Destroy()
+			end
+		end
+	end
+
+	local function addOverlayLabel(text, order, bold, h)
+		local lab = Instance.new("TextLabel")
+		lab.BackgroundTransparency = 1
+		lab.Font = bold and Enum.Font.GothamBold or Enum.Font.Gotham
+		lab.Text = text or ""
+		lab.TextColor3 = bold and C.text or C.dim
+		lab.TextSize = bold and 14 or 12
+		lab.TextWrapped = true
+		lab.TextXAlignment = Enum.TextXAlignment.Left
+		lab.AutomaticSize = Enum.AutomaticSize.Y
+		lab.Size = UDim2.new(1, -8, 0, h or 16)
+		lab.LayoutOrder = order
+		lab.Parent = guideOverlay
+		return lab
+	end
+
+	local function addOverlayRow(order)
+		local row = Instance.new("Frame")
+		row.BackgroundTransparency = 1
+		row.AutomaticSize = Enum.AutomaticSize.Y
+		row.Size = UDim2.new(1, 0, 0, 0)
+		row.LayoutOrder = order
+		row.Parent = guideOverlay
+		local lay = Instance.new("UIListLayout")
+		lay.FillDirection = Enum.FillDirection.Horizontal
+		lay.Padding = UDim.new(0, 6)
+		lay.SortOrder = Enum.SortOrder.LayoutOrder
+		lay.Parent = row
+		return row
+	end
+
+	local function addCraftBlock(craft, order)
+		if not craft then
+			return order
+		end
+		addOverlayLabel(
+			"先合成 "
+				.. Flow.sellLabel(craft.dest)
+				.. (craft.station and (" · " .. craft.station) or "")
+				.. (craft.gold and (" · 另外要 " .. tostring(craft.gold) .. " 金") or ""),
+			order,
+			false
+		)
+		local row = addOverlayRow(order + 1)
+		mkGuideCell(row, "Ore", craft.dest, Flow.sellLabel(craft.dest), 1)
+		for i, part in ipairs(craft.parts or {}) do
+			mkGuideCell(row, "Ore", part[1], Flow.sellLabel(part[1]) .. " " .. tostring(part[2]) .. "颗", i + 1)
+		end
+		return order + 2
+	end
+
+	local function openGuideDetail(spec)
+		clearOverlay()
+		local back = Instance.new("TextButton")
+		back.BackgroundColor3 = C.tab
+		back.BorderSizePixel = 0
+		back.Font = Enum.Font.GothamBold
+		back.Text = "返回指南"
+		back.TextColor3 = C.text
+		back.TextSize = 13
+		back.Size = UDim2.new(1, 0, 0, 30)
+		back.LayoutOrder = 1
+		back.AutoButtonColor = true
+		back.Parent = guideOverlay
+		corner(back, 4)
+		back.MouseButton1Click:Connect(function()
+			guideOverlay.Visible = false
+		end)
+		addOverlayLabel(spec.title or "", 2, true, 20)
+		addOverlayLabel(spec.body or "", 3, false, 18)
+		if spec.counts and #spec.counts > 0 then
+			addOverlayLabel("这一炉矿石", 4, true)
+			local row = addOverlayRow(5)
+			local look = spec.lookOre or (spec.counts[1] and spec.counts[1][1])
+			for i, part in ipairs(spec.counts) do
+				mkGuideCell(row, "Ore", part[1], Flow.sellLabel(part[1]) .. " " .. tostring(part[2]) .. "颗", i, look)
+			end
+		end
+		if spec.gears and #spec.gears > 0 then
+			addOverlayLabel("成品样子", 6, true)
+			local row = addOverlayRow(7)
+			for i, gear in ipairs(spec.gears) do
+				mkGuideCell(row, "Gear", gear[1], Flow.gearLabel(gear[1]), i, gear[2] or spec.lookOre)
+			end
+		end
+		if spec.lines then
+			local nextOrder = 8
+			for _, line in ipairs(spec.lines) do
+				addOverlayLabel(line.text, nextOrder, false)
+				local row = addOverlayRow(nextOrder + 1)
+				local look = line.counts and line.counts[1] and line.counts[1][1]
+				for i, part in ipairs(line.counts or {}) do
+					mkGuideCell(row, "Ore", part[1], Flow.sellLabel(part[1]) .. " " .. tostring(part[2]) .. "颗", i, look)
+				end
+				if line.gear then
+					mkGuideCell(row, "Gear", line.gear, Flow.gearLabel(line.gear), 20, look)
+				end
+				nextOrder = nextOrder + 2
+			end
+			addCraftBlock(spec.craft, nextOrder)
+			addCraftBlock(spec.craft2, nextOrder + 2)
+		else
+			addCraftBlock(spec.craft, 8)
+			addCraftBlock(spec.craft2, 10)
+		end
+		guideOverlay.Visible = true
+		guideOverlay.CanvasPosition = Vector2.new(0, 0)
+		task.defer(ensureGuideIcons)
+	end
+
+	local function clickWeapon(area, weaponName)
+		local cls = Flow.gearClass[weaponName] or "StraightSword"
+		local lock = Flow.classLock[cls] or 9
+		local total = Flow.forgeTotal(lock)
+		local counts = Flow.mixCounts(area.mix, total)
+		local look = counts[1] and counts[1][1]
+		local clsName = Flow.classZh[cls] or cls
+		local body = table.concat({
+			"点的是 " .. Flow.gearLabel(weaponName) .. "，属于" .. clsName .. "。",
+			"游戏按颗数进炉。锁定" .. clsName .. "至少要 " .. tostring(lock) .. " 颗，这一套按 " .. tostring(total) .. " 颗扔。",
+			"配法：" .. Flow.mixLine(counts) .. "，一共 " .. tostring(total) .. " 颗。",
+			"词条矿至少要占三成才会满，所以带词条的那种不要少扔。",
+			area.note or "",
+		}, "\n")
+		openGuideDetail({
+			title = Flow.gearLabel(weaponName) .. " · " .. clsName,
+			body = body,
+			counts = counts,
+			lookOre = look,
+			gears = { { weaponName, look } },
+			craft = area.craft,
+			craft2 = area.craft2,
+		})
+	end
+
+	local function clickArmorSet(area, set)
+		local mix = area.armorMix or area.mix
+		local lines = {}
+		local gears = {}
+		local bag = {}
+		local look
+		for _, item in ipairs(set.items or {}) do
+			local cls = Flow.gearClass[item] or "HeavyChestplate"
+			local lock = Flow.classLock[cls] or 52
+			local total = Flow.forgeTotal(lock)
+			local counts = Flow.mixCounts(mix, total)
+			look = look or (counts[1] and counts[1][1])
+			gears[#gears + 1] = { item, look }
+			for _, part in ipairs(counts) do
+				bag[part[1]] = (bag[part[1]] or 0) + part[2]
+			end
+			lines[#lines + 1] = {
+				text = Flow.gearLabel(item)
+					.. "（"
+					.. (Flow.classZh[cls] or cls)
+					.. "，锁定 "
+					.. tostring(lock)
+					.. " 颗）这一炉 "
+					.. tostring(total)
+					.. " 颗："
+					.. Flow.mixLine(counts),
+				counts = counts,
+				gear = item,
+			}
+		end
+		local sumBits = {}
+		local sum = 0
+		for name, qty in pairs(bag) do
+			sumBits[#sumBits + 1] = { name, qty }
+			sum = sum + qty
+		end
+		table.sort(sumBits, function(a, b)
+			return a[2] > b[2]
+		end)
+		local body = table.concat({
+			(set.title or "护甲一套") .. "要分开锻 3 次，头、甲、腿各进一炉。",
+			"三件合计 " .. tostring(sum) .. " 颗：" .. Flow.mixLine(sumBits) .. "。",
+			area.armorNote or area.note or "",
+		}, "\n")
+		openGuideDetail({
+			title = set.title or "护甲一套",
+			body = body,
+			lookOre = look,
+			gears = gears,
+			lines = lines,
+			craft = area.craft,
+			craft2 = area.craft2,
+		})
+	end
+
 	local guideHint = Instance.new("TextLabel")
 	guideHint.BackgroundTransparency = 1
 	guideHint.Font = Enum.Font.Gotham
-	guideHint.Text = "按当前地图展开。词条要该矿 ≥30% 才满。矿石和成品都是游戏模型。"
+	guideHint.Text = "点武器或整套护甲，看这一炉要几颗配几颗。词条矿至少占三成才满。当前地图已展开。"
 	guideHint.TextColor3 = C.dim
 	guideHint.TextSize = 11
 	guideHint.TextXAlignment = Enum.TextXAlignment.Left
@@ -4149,60 +4624,6 @@ local function bindUi()
 
 	local guideHeads = {}
 	state.openGuide = Flow.placeMap[game.PlaceId] or 3
-
-	local function addMixRow(parent, mix, order, lookOre)
-		local row = Instance.new("Frame")
-		row.BackgroundTransparency = 1
-		row.AutomaticSize = Enum.AutomaticSize.Y
-		row.Size = UDim2.new(1, 0, 0, 0)
-		row.LayoutOrder = order
-		row.Parent = parent
-		local lay = Instance.new("UIListLayout")
-		lay.FillDirection = Enum.FillDirection.Horizontal
-		lay.Padding = UDim.new(0, 6)
-		lay.SortOrder = Enum.SortOrder.LayoutOrder
-		lay.Parent = row
-		for i, part in ipairs(mix) do
-			local oreName, pct = part[1], part[2]
-			mkGuideCell(row, "Ore", oreName, Flow.sellLabel(oreName) .. " " .. tostring(pct) .. "%", i, lookOre)
-		end
-		return row
-	end
-
-	local function addCraftRow(parent, craft, order)
-		if not craft then
-			return order
-		end
-		local title = Instance.new("TextLabel")
-		title.BackgroundTransparency = 1
-		title.Font = Enum.Font.Gotham
-		title.Text = "合成 "
-			.. Flow.sellLabel(craft.dest)
-			.. (craft.station and (" · " .. craft.station) or "")
-			.. (craft.gold and (" · " .. tostring(craft.gold) .. "金") or "")
-		title.TextColor3 = C.dim
-		title.TextSize = 11
-		title.TextXAlignment = Enum.TextXAlignment.Left
-		title.Size = UDim2.new(1, 0, 0, 16)
-		title.LayoutOrder = order
-		title.Parent = parent
-		local row = Instance.new("Frame")
-		row.BackgroundTransparency = 1
-		row.AutomaticSize = Enum.AutomaticSize.Y
-		row.Size = UDim2.new(1, 0, 0, 0)
-		row.LayoutOrder = order + 1
-		row.Parent = parent
-		local lay = Instance.new("UIListLayout")
-		lay.FillDirection = Enum.FillDirection.Horizontal
-		lay.Padding = UDim.new(0, 6)
-		lay.SortOrder = Enum.SortOrder.LayoutOrder
-		lay.Parent = row
-		mkGuideCell(row, "Ore", craft.dest, Flow.sellLabel(craft.dest), 1)
-		for i, part in ipairs(craft.parts) do
-			mkGuideCell(row, "Ore", part[1], Flow.sellLabel(part[1]) .. " x" .. tostring(part[2]), i + 1)
-		end
-		return order + 2
-	end
 
 	local function mkGuideArea(parent, area, order)
 		local card = Instance.new("Frame")
@@ -4270,72 +4691,99 @@ local function bindUi()
 		rockLay.Padding = UDim.new(0, 6)
 		rockLay.SortOrder = Enum.SortOrder.LayoutOrder
 		rockLay.Parent = rockRow
-		for i, rockName in ipairs(area.rocks) do
+		for i, rockName in ipairs(area.rocks or {}) do
 			mkGuideCell(rockRow, "Rock", rockName, Flow.rockLabel(rockName), i)
 		end
 
 		local lookOre = area.mix and area.mix[1] and area.mix[1][1]
-		local mixLab = Instance.new("TextLabel")
-		mixLab.BackgroundTransparency = 1
-		mixLab.Font = Enum.Font.Gotham
-		mixLab.Text = "锻造配方 · " .. (area.note or "")
-		mixLab.TextColor3 = C.dim
-		mixLab.TextSize = 11
-		mixLab.TextWrapped = true
-		mixLab.TextXAlignment = Enum.TextXAlignment.Left
-		mixLab.AutomaticSize = Enum.AutomaticSize.Y
-		mixLab.Size = UDim2.new(1, 0, 0, 14)
-		mixLab.LayoutOrder = 5
-		mixLab.Parent = card
-		addMixRow(card, area.mix, 6, lookOre)
-
-		local gearLab = Instance.new("TextLabel")
-		gearLab.BackgroundTransparency = 1
-		gearLab.Font = Enum.Font.Gotham
-		gearLab.Text = "成品样子"
-		gearLab.TextColor3 = C.dim
-		gearLab.TextSize = 11
-		gearLab.TextXAlignment = Enum.TextXAlignment.Left
-		gearLab.Size = UDim2.new(1, 0, 0, 14)
-		gearLab.LayoutOrder = 7
-		gearLab.Parent = card
-		local gearRow = Instance.new("Frame")
-		gearRow.BackgroundTransparency = 1
-		gearRow.AutomaticSize = Enum.AutomaticSize.Y
-		gearRow.Size = UDim2.new(1, 0, 0, 0)
-		gearRow.LayoutOrder = 8
-		gearRow.Parent = card
-		local gearLay = Instance.new("UIListLayout")
-		gearLay.FillDirection = Enum.FillDirection.Horizontal
-		gearLay.Padding = UDim.new(0, 8)
-		gearLay.SortOrder = Enum.SortOrder.LayoutOrder
-		gearLay.Parent = gearRow
-		if area.weapon then
-			mkGuideCell(gearRow, "Gear", area.weapon, "武器 " .. Flow.gearLabel(area.weapon), 1, lookOre)
-		end
-		if area.armor then
-			mkGuideCell(gearRow, "Gear", area.armor, "护甲 " .. Flow.gearLabel(area.armor), 2, lookOre)
+		local wepLab = Instance.new("TextLabel")
+		wepLab.BackgroundTransparency = 1
+		wepLab.Font = Enum.Font.Gotham
+		wepLab.Text = "武器（点进去看几颗配几颗）"
+		wepLab.TextColor3 = C.dim
+		wepLab.TextSize = 11
+		wepLab.TextXAlignment = Enum.TextXAlignment.Left
+		wepLab.Size = UDim2.new(1, 0, 0, 14)
+		wepLab.LayoutOrder = 5
+		wepLab.Parent = card
+		local wepRow = Instance.new("Frame")
+		wepRow.BackgroundTransparency = 1
+		wepRow.AutomaticSize = Enum.AutomaticSize.Y
+		wepRow.Size = UDim2.new(1, 0, 0, 0)
+		wepRow.LayoutOrder = 6
+		wepRow.Parent = card
+		local wepLay = Instance.new("UIListLayout")
+		wepLay.FillDirection = Enum.FillDirection.Horizontal
+		wepLay.Padding = UDim.new(0, 6)
+		wepLay.SortOrder = Enum.SortOrder.LayoutOrder
+		wepLay.Parent = wepRow
+		for i, weaponName in ipairs(area.weapons or {}) do
+			mkGuideCell(wepRow, "Gear", weaponName, Flow.gearLabel(weaponName), i, lookOre, function()
+				clickWeapon(area, weaponName)
+			end)
 		end
 
-		local nextOrder = 9
-		if area.alt then
-			local altLab = Instance.new("TextLabel")
-			altLab.BackgroundTransparency = 1
-			altLab.Font = Enum.Font.Gotham
-			altLab.Text = area.altNote or "备用配方"
-			altLab.TextColor3 = C.dim
-			altLab.TextSize = 11
-			altLab.TextWrapped = true
-			altLab.TextXAlignment = Enum.TextXAlignment.Left
-			altLab.AutomaticSize = Enum.AutomaticSize.Y
-			altLab.Size = UDim2.new(1, 0, 0, 14)
-			altLab.LayoutOrder = nextOrder
-			altLab.Parent = card
-			addMixRow(card, area.alt, nextOrder + 1, area.alt[1] and area.alt[1][1])
-			nextOrder = nextOrder + 2
+		local armLab = Instance.new("TextLabel")
+		armLab.BackgroundTransparency = 1
+		armLab.Font = Enum.Font.Gotham
+		armLab.Text = "护甲整套（点一套看头甲腿各要几颗）"
+		armLab.TextColor3 = C.dim
+		armLab.TextSize = 11
+		armLab.TextXAlignment = Enum.TextXAlignment.Left
+		armLab.Size = UDim2.new(1, 0, 0, 14)
+		armLab.LayoutOrder = 7
+		armLab.Parent = card
+
+		for si, set in ipairs(area.armorSets or {}) do
+			local setBtn = Instance.new("TextButton")
+			setBtn.BackgroundColor3 = C.off
+			setBtn.BorderSizePixel = 0
+			setBtn.Text = ""
+			setBtn.AutoButtonColor = true
+			setBtn.AutomaticSize = Enum.AutomaticSize.Y
+			setBtn.Size = UDim2.new(1, 0, 0, 0)
+			setBtn.LayoutOrder = 8 + si
+			setBtn.Parent = card
+			corner(setBtn, 6)
+			local setPad = Instance.new("UIPadding")
+			setPad.PaddingTop = UDim.new(0, 6)
+			setPad.PaddingBottom = UDim.new(0, 6)
+			setPad.PaddingLeft = UDim.new(0, 6)
+			setPad.PaddingRight = UDim.new(0, 6)
+			setPad.Parent = setBtn
+			local setList = Instance.new("UIListLayout")
+			setList.Padding = UDim.new(0, 4)
+			setList.SortOrder = Enum.SortOrder.LayoutOrder
+			setList.Parent = setBtn
+			local setTitle = Instance.new("TextLabel")
+			setTitle.BackgroundTransparency = 1
+			setTitle.Font = Enum.Font.GothamBold
+			setTitle.Text = set.title or "护甲一套"
+			setTitle.TextColor3 = C.text
+			setTitle.TextSize = 12
+			setTitle.TextXAlignment = Enum.TextXAlignment.Left
+			setTitle.Size = UDim2.new(1, 0, 0, 16)
+			setTitle.LayoutOrder = 1
+			setTitle.Parent = setBtn
+			local setRow = Instance.new("Frame")
+			setRow.BackgroundTransparency = 1
+			setRow.AutomaticSize = Enum.AutomaticSize.Y
+			setRow.Size = UDim2.new(1, 0, 0, 0)
+			setRow.LayoutOrder = 2
+			setRow.Parent = setBtn
+			local setLay = Instance.new("UIListLayout")
+			setLay.FillDirection = Enum.FillDirection.Horizontal
+			setLay.Padding = UDim.new(0, 6)
+			setLay.SortOrder = Enum.SortOrder.LayoutOrder
+			setLay.Parent = setRow
+			local armorLook = (area.armorMix and area.armorMix[1] and area.armorMix[1][1]) or lookOre
+			for pi, item in ipairs(set.items or {}) do
+				mkGuideCell(setRow, "Gear", item, Flow.gearLabel(item), pi, armorLook)
+			end
+			setBtn.MouseButton1Click:Connect(function()
+				clickArmorSet(area, set)
+			end)
 		end
-		nextOrder = addCraftRow(card, area.craft, nextOrder)
-		nextOrder = addCraftRow(card, area.craft2, nextOrder)
 		return card
 	end
 
