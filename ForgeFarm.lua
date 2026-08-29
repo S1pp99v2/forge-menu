@@ -1,6 +1,6 @@
 --!nocheck
 --!nolint
-local FORGE_VERSION = "1.1.27"
+local FORGE_VERSION = "1.1.28"
 print("[Forge] boot " .. FORGE_VERSION)
 
 local function grab(name)
@@ -2623,6 +2623,163 @@ local function bindFarm()
 		return ok
 	end
 
+	Flow.gateFlags = {
+		["Goblin Cave"] = "UnlockedGoblinCaveDoor",
+		DemoniteCave = "UnlockedDemoniteCaveDoor",
+		FallenAngel = "UnlockedFallenAngelCaveDoor",
+		Island3RedCave = "UnlockedRedCaveDoor",
+		Island3RedCave2 = "UnlockedRedCaveDoor",
+	}
+	Flow.zoneGate = {
+		Island2GoblinCave = "Goblin Cave",
+	}
+
+	function Flow.gateOpen(name)
+		local flag = name and Flow.gateFlags[name]
+		if not flag then
+			return true
+		end
+		local data = Flow.replicaData()
+		local v = data and data.MiscDialogues and data.MiscDialogues[flag]
+		return v ~= nil and v ~= false
+	end
+
+	function Flow.regionFolder()
+		local debris = workspace:FindFirstChild("Debris")
+		return debris and debris:FindFirstChild("Regions")
+	end
+
+	function Flow.underPlate(part, pos, pad)
+		if not (part and part:IsA("BasePart") and typeof(pos) == "Vector3") then
+			return false
+		end
+		local localPos = part.CFrame:PointToObjectSpace(pos)
+		local half = part.Size * 0.5
+		pad = pad or 6
+		if math.abs(localPos.X) > half.X + pad or math.abs(localPos.Z) > half.Z + pad then
+			return false
+		end
+		return localPos.Y <= half.Y + 2
+	end
+
+	function Flow.regionAt(pos)
+		local folder = Flow.regionFolder()
+		if not (folder and typeof(pos) == "Vector3") then
+			return nil
+		end
+		local best, bestY
+		for _, part in ipairs(folder:GetChildren()) do
+			if part:IsA("BasePart") and Flow.underPlate(part, pos, 6) then
+				local y = part.Position.Y
+				if not bestY or y < bestY then
+					best = part.Name
+					bestY = y
+				end
+			end
+		end
+		return best, bestY
+	end
+
+	function Flow.posLocked(pos)
+		local name, y = Flow.regionAt(pos)
+		if name and not Flow.gateOpen(name) then
+			return true, name, y
+		end
+		return false
+	end
+
+	function Flow.zoneToGate(zoneName)
+		if type(zoneName) ~= "string" then
+			return nil
+		end
+		if Flow.zoneGate[zoneName] then
+			return Flow.zoneGate[zoneName]
+		end
+		if string.find(zoneName, "GoblinCave", 1, true) then
+			return "Goblin Cave"
+		end
+		if string.find(zoneName, "Demonite", 1, true) then
+			return "DemoniteCave"
+		end
+		if string.find(zoneName, "FallenAngel", 1, true) then
+			return "FallenAngel"
+		end
+		if string.find(zoneName, "RedCave", 1, true) then
+			return "Island3RedCave"
+		end
+		return nil
+	end
+
+	function Flow.zoneLocked(zoneName)
+		local name = Flow.zoneToGate(zoneName)
+		if name and not Flow.gateOpen(name) then
+			return true, name
+		end
+		return false
+	end
+
+	function Flow.areaLocked(model, zone)
+		if type(zone) == "string" then
+			if Flow.zoneLocked(zone) then
+				return true
+			end
+		elseif zone and Flow.zoneLocked(zone.Name) then
+			return true
+		end
+		local pos = nil
+		if model then
+			if type(Flow.mobCenter) == "function" and model:FindFirstChild("HumanoidRootPart") then
+				pos = Flow.mobCenter(model)
+			else
+				pos = Flow.centerOf(model)
+			end
+		end
+		return pos and Flow.posLocked(pos) or false
+	end
+
+	function Flow.segmentLocked(from, to)
+		if not (typeof(from) == "Vector3" and typeof(to) == "Vector3") then
+			return false
+		end
+		local dist = (to - from).Magnitude
+		local n = math.clamp(math.ceil(dist / 10), 4, 28)
+		local ceil
+		for i = 0, n do
+			local p = from:Lerp(to, i / n)
+			local locked, _, y = Flow.posLocked(p)
+			if locked then
+				if y and (not ceil or y > ceil) then
+					ceil = y
+				else
+					ceil = ceil or (p.Y + 8)
+				end
+			end
+		end
+		return ceil ~= nil, ceil
+	end
+
+	function Flow.safeFlyTo(from, destPos)
+		if typeof(from) ~= "Vector3" or typeof(destPos) ~= "Vector3" then
+			return destPos
+		end
+		if Flow.posLocked(destPos) then
+			return nil
+		end
+		local hit, ceil = Flow.segmentLocked(from, destPos)
+		if not hit or not ceil then
+			return destPos
+		end
+		local safeY = ceil + 14
+		if from.Y < safeY - 2 then
+			return Vector3.new(from.X, safeY, from.Z)
+		end
+		local flat = Vector3.new(destPos.X - from.X, 0, destPos.Z - from.Z)
+		if flat.Magnitude > 8 then
+			return Vector3.new(destPos.X, math.max(destPos.Y, safeY), destPos.Z)
+		end
+		return destPos
+	end
+
 	function Flow.replicaData()
 		local ok, knit = pcall(require, ReplicatedStorage.Shared.Packages.Knit)
 		if ok and knit then
@@ -2685,6 +2842,9 @@ local function bindFarm()
 		end
 		local hum = model:FindFirstChildOfClass("Humanoid")
 		if not hum or hum.Health <= 0 then
+			return false
+		end
+		if Flow.areaLocked(model) then
 			return false
 		end
 		return true
@@ -3477,6 +3637,9 @@ local function bindFarm()
 		if type(Flow.shouldSkipRock) == "function" and Flow.shouldSkipRock(model) then
 			return false
 		end
+		if Flow.areaLocked(model) then
+			return false
+		end
 		local hp = tonumber(model:GetAttribute("Health")) or 0
 		return hp > 0
 	end
@@ -3688,8 +3851,11 @@ local function bindFarm()
 				Flow.skipRocks[model] = nil
 			end
 		end
-		Flow.eachRock(function(model)
+		Flow.eachRock(function(model, slot)
 			if not Flow.wantRock(model.Name) then
+				return
+			end
+			if Flow.areaLocked(model, slot and slot.Parent) then
 				return
 			end
 			local hp = tonumber(model:GetAttribute("Health")) or 0
@@ -3727,8 +3893,8 @@ local function bindFarm()
 
 	function Flow.countReady()
 		local n = 0
-		Flow.eachRock(function(model)
-			if Flow.wantRock(model.Name) and (tonumber(model:GetAttribute("Health")) or 0) > 0 and not Flow.shouldSkipRock(model) then
+		Flow.eachRock(function(model, slot)
+			if Flow.wantRock(model.Name) and (tonumber(model:GetAttribute("Health")) or 0) > 0 and not Flow.shouldSkipRock(model) and not Flow.areaLocked(model, slot and slot.Parent) then
 				n = n + 1
 			end
 		end)
@@ -3868,7 +4034,7 @@ local function bindFarm()
 			Flow.setFlyBody(false)
 			return
 		end
-		local dest, look = Flow.flyJob()
+		local dest, look, kind = Flow.flyJob()
 		if Flow.miningNow() and Flow.target then
 			pcall(Flow.pinCrit, Flow.target)
 		end
@@ -3883,6 +4049,19 @@ local function bindFarm()
 		Flow.setFlyBody(true)
 		Flow.applyNoclip()
 		hrp.Anchored = false
+		local safe = Flow.safeFlyTo(hrp.Position, dest.Position)
+		if not safe then
+			if kind == "mine" then
+				Flow.target = nil
+			elseif kind == "hunt" then
+				Flow.huntTarget = nil
+			end
+			Flow.setFlyBody(false)
+			return
+		end
+		if (safe - dest.Position).Magnitude > 1 then
+			dest = CFrame.new(safe)
+		end
 		local delta = dest.Position - hrp.Position
 		local dist = delta.Magnitude
 		local speed = math.max(tonumber(state.flySpeed) or 70, 8)
