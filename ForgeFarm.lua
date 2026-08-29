@@ -1,6 +1,6 @@
 --!nocheck
 --!nolint
-local FORGE_VERSION = "1.1.29"
+local FORGE_VERSION = "1.1.30"
 print("[Forge] boot " .. FORGE_VERSION)
 
 local function grab(name)
@@ -4495,7 +4495,27 @@ local function bindFarm()
 		return keep
 	end
 
-	function Flow.questOreRocks(keep)
+	function Flow.questMineRocks(id, live)
+		local rocks = {}
+		live = Flow.liveQuest(id) or live
+		local book = Flow.questBook()[id]
+		local objs = book and book.Objectives
+		if type(objs) == "table" then
+			for _, def in pairs(objs) do
+				if type(def) == "table" and def.Type == "Mine" and type(def.Target) == "string" then
+					rocks[def.Target] = true
+				end
+			end
+		end
+		Flow.eachOpenObj(id, live, function(_, _, _, typ, target)
+			if typ == "Mine" and target then
+				rocks[target] = true
+			end
+		end)
+		return rocks
+	end
+
+	function Flow.questOreRocks(keep, limit)
 		local rocks = {}
 		if type(keep) ~= "table" then
 			return rocks
@@ -4504,9 +4524,17 @@ local function bindFarm()
 			local set = Flow.rocksForOre(ore)
 			if type(set) == "table" then
 				for rock in pairs(set) do
-					rocks[rock] = true
+					if not limit or limit[rock] then
+						rocks[rock] = true
+					end
 				end
 			end
+		end
+		if next(rocks) then
+			return rocks
+		end
+		if type(limit) == "table" and next(limit) then
+			return limit
 		end
 		return rocks
 	end
@@ -4520,27 +4548,9 @@ local function bindFarm()
 		if #opens == 0 then
 			return nil
 		end
-		local mines, ores = {}, {}
 		for _, o in ipairs(opens) do
 			if o.typ == "Mine" and o.target then
-				mines[#mines + 1] = o
-			elseif (o.typ == "Collect" or o.typ == "Extra") and o.target and Flow.isKnownOre(o.target) then
-				ores[#ores + 1] = o
-			end
-		end
-		if #mines > 0 and #ores > 0 then
-			local function drops(rock, ore)
-				if ore == "Ore" then
-					return true
-				end
-				return Flow.rockOreChance(rock, ore) > 0
-			end
-			for _, m in ipairs(mines) do
-				for _, c in ipairs(ores) do
-					if drops(m.target, c.target) then
-						return m.i, m.prog, m.def
-					end
-				end
+				return o.i, o.prog, o.def
 			end
 		end
 		local o = opens[1]
@@ -4686,7 +4696,8 @@ local function bindFarm()
 				if not next(keep) then
 					keep = { [target] = true }
 				end
-				local rocks = Flow.questOreRocks(keep)
+				local limit = Flow.questMineRocks(id, live)
+				local rocks = Flow.questOreRocks(keep, next(limit) and limit or nil)
 				if not next(rocks) then
 					rocks = Flow.rocksForOre(target)
 				end
@@ -4740,7 +4751,8 @@ local function bindFarm()
 				if not next(keep) then
 					keep = { [target] = true }
 				end
-				local rocks = Flow.questOreRocks(keep)
+				local limit = Flow.questMineRocks(id, live)
+				local rocks = Flow.questOreRocks(keep, next(limit) and limit or nil)
 				if not next(rocks) then
 					rocks = Flow.rocksForOre(target)
 				end
@@ -6167,7 +6179,7 @@ local function bindUi()
 	local questHint = Instance.new("TextLabel")
 	questHint.BackgroundTransparency = 1
 	questHint.Font = Enum.Font.Gotham
-	questHint.Text = "只做任务栏里正在进行的。同一条又要挖石头又要收矿时，先把石头数量挖完，不够的矿再筛选。做不了的改做下一条能自动进行的。"
+	questHint.Text = "只做任务栏里正在进行的。同一条又要挖石头又要收矿时，先把任务里的石头数量挖完，不够的矿只在这些石头上筛选，不去别的石头。做不了的改做下一条能自动进行的。"
 	questHint.TextColor3 = C.dim
 	questHint.TextSize = 11
 	questHint.TextXAlignment = Enum.TextXAlignment.Left
