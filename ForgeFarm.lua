@@ -1,6 +1,6 @@
 --!nocheck
 --!nolint
-local FORGE_VERSION = "1.1.26"
+local FORGE_VERSION = "1.1.27"
 print("[Forge] boot " .. FORGE_VERSION)
 
 local function grab(name)
@@ -235,7 +235,7 @@ function Flow.applyCfg(cfg)
 		state.atkOn = true
 	end
 	if tonumber(cfg.huntHeight) then
-		state.huntHeight = math.clamp(tonumber(cfg.huntHeight), 8, 28)
+		state.huntHeight = math.clamp(tonumber(cfg.huntHeight), 5, 28)
 	end
 	if tonumber(cfg.sellWait) then
 		state.sellWait = math.clamp(math.floor(tonumber(cfg.sellWait)), 10, 600)
@@ -2695,7 +2695,7 @@ local function bindFarm()
 		if not center then
 			return nil
 		end
-		local height = math.clamp(tonumber(state.huntHeight) or 12, 8, 28)
+		local height = math.clamp(tonumber(state.huntHeight) or 12, 5, 28)
 		return CFrame.lookAt(center + Vector3.new(0, height, 0), center)
 	end
 
@@ -6311,7 +6311,7 @@ local function bindUi()
 		return state.huntHeight
 	end, function(v)
 		state.huntHeight = v
-	end, 1, 8, 28)
+	end, 1, 5, 28)
 	local huntAct = mkAct(huntPage, 4)
 	local huntAll = mkPlain(huntAct, "全选本岛", 1, C.btn)
 	huntAll.Size = UDim2.new(0.33, -4, 1, 0)
