@@ -1,6 +1,6 @@
 --!nocheck
 --!nolint
-local FORGE_VERSION = "1.1.28"
+local FORGE_VERSION = "1.1.29"
 print("[Forge] boot " .. FORGE_VERSION)
 
 local function grab(name)
@@ -4458,7 +4458,7 @@ local function bindFarm()
 		return progress[i] or progress[tostring(i)]
 	end
 
-	function Flow.firstOpenObj(id, live)
+	function Flow.eachOpenObj(id, live, fn)
 		live = Flow.liveQuest(id) or live
 		local book = Flow.questBook()[id]
 		local objs = book and book.Objectives
@@ -4474,15 +4474,77 @@ local function bindFarm()
 			n = math.max(n, i)
 		end
 		if n < 1 then
-			return nil
+			return
 		end
 		for i = 1, n do
 			local prog = Flow.progAt(progress, i)
 			if not Flow.objDone(prog, id, i) then
-				return i, prog, objs and objs[i]
+				local def = objs and objs[i]
+				fn(i, prog, def, Flow.objTypeOf(prog, def), Flow.objTargetOf(prog, def))
 			end
 		end
-		return nil
+	end
+
+	function Flow.questKeepOres(id, live)
+		local keep = {}
+		Flow.eachOpenObj(id, live, function(_, _, _, typ, target)
+			if (typ == "Collect" or typ == "Extra") and target and target ~= "Ore" and Flow.isKnownOre(target) then
+				keep[target] = true
+			end
+		end)
+		return keep
+	end
+
+	function Flow.questOreRocks(keep)
+		local rocks = {}
+		if type(keep) ~= "table" then
+			return rocks
+		end
+		for ore in pairs(keep) do
+			local set = Flow.rocksForOre(ore)
+			if type(set) == "table" then
+				for rock in pairs(set) do
+					rocks[rock] = true
+				end
+			end
+		end
+		return rocks
+	end
+
+	function Flow.firstOpenObj(id, live)
+		live = Flow.liveQuest(id) or live
+		local opens = {}
+		Flow.eachOpenObj(id, live, function(i, prog, def, typ, target)
+			opens[#opens + 1] = { i = i, prog = prog, def = def, typ = typ, target = target }
+		end)
+		if #opens == 0 then
+			return nil
+		end
+		local mines, ores = {}, {}
+		for _, o in ipairs(opens) do
+			if o.typ == "Mine" and o.target then
+				mines[#mines + 1] = o
+			elseif (o.typ == "Collect" or o.typ == "Extra") and o.target and Flow.isKnownOre(o.target) then
+				ores[#ores + 1] = o
+			end
+		end
+		if #mines > 0 and #ores > 0 then
+			local function drops(rock, ore)
+				if ore == "Ore" then
+					return true
+				end
+				return Flow.rockOreChance(rock, ore) > 0
+			end
+			for _, m in ipairs(mines) do
+				for _, c in ipairs(ores) do
+					if drops(m.target, c.target) then
+						return m.i, m.prog, m.def
+					end
+				end
+			end
+		end
+		local o = opens[1]
+		return o.i, o.prog, o.def
 	end
 
 	function Flow.mobOnMap(name, mapId)
@@ -4620,11 +4682,18 @@ local function bindFarm()
 				return job
 			end
 			if Flow.isKnownOre(target) then
-				local rocks = Flow.rocksForOre(target)
+				local keep = Flow.questKeepOres(id, live)
+				if not next(keep) then
+					keep = { [target] = true }
+				end
+				local rocks = Flow.questOreRocks(keep)
+				if not next(rocks) then
+					rocks = Flow.rocksForOre(target)
+				end
 				if rocks and next(rocks) then
 					job.kind = "mine"
 					job.rocks = rocks
-					job.keepOres = { [target] = true }
+					job.keepOres = keep
 					job.label = "任务挖" .. Flow.itemLabel(target) .. (frac and (" " .. frac) or "")
 					return job
 				end
@@ -4667,11 +4736,18 @@ local function bindFarm()
 		end
 		if typ == "Extra" and target then
 			if Flow.isKnownOre(target) and target ~= "Ore" then
-				local rocks = Flow.rocksForOre(target)
+				local keep = Flow.questKeepOres(id, live)
+				if not next(keep) then
+					keep = { [target] = true }
+				end
+				local rocks = Flow.questOreRocks(keep)
+				if not next(rocks) then
+					rocks = Flow.rocksForOre(target)
+				end
 				if rocks and next(rocks) then
 					job.kind = "mine"
 					job.rocks = rocks
-					job.keepOres = { [target] = true }
+					job.keepOres = keep
 					job.label = "任务挖" .. Flow.itemLabel(target)
 					return job
 				end
@@ -6091,7 +6167,7 @@ local function bindUi()
 	local questHint = Instance.new("TextLabel")
 	questHint.BackgroundTransparency = 1
 	questHint.Font = Enum.Font.Gotham
-	questHint.Text = "只做任务栏里正在进行的，按实时进度跳过已完成的子任务。收指定矿时挖到一半不是要的就换下一块。做不了的改做下一条能自动进行的。"
+	questHint.Text = "只做任务栏里正在进行的。同一条又要挖石头又要收矿时，先把石头数量挖完，不够的矿再筛选。做不了的改做下一条能自动进行的。"
 	questHint.TextColor3 = C.dim
 	questHint.TextSize = 11
 	questHint.TextXAlignment = Enum.TextXAlignment.Left
